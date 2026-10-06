@@ -218,6 +218,7 @@ body.book-open .invitation-app::before {
 .flap-top {
   --panel-light: linear-gradient(180deg, rgba(255, 255, 255, 0.2), transparent 42%, rgba(29, 0, 4, 0.34));
   --panel-texture-position: 52% 14%;
+  --flap-tip: 64%;
   z-index: 7;
   overflow: visible;
   background: none;
@@ -226,7 +227,18 @@ body.book-open .invitation-app::before {
   transform: rotateX(0deg) translateZ(1px);
   transform-origin: 50% 0;
   backface-visibility: visible;
-  filter: brightness(1.04) drop-shadow(0 7px 7px rgba(35, 0, 4, 0.3));
+  filter: brightness(1.04);
+}
+
+.flap-top::before {
+  position: absolute;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+  background: rgba(35, 0, 4, 0.24);
+  clip-path: polygon(0 0, 100% 0, 50% var(--flap-tip));
+  translate: 0 4px;
+  filter: blur(2px);
 }
 
 .flap-top-surface {
@@ -242,8 +254,17 @@ body.book-open .invitation-app::before {
   background-size: 100% 100%, 155% auto, 140px 140px;
   background-blend-mode: soft-light, multiply, overlay;
   border-radius: inherit;
-  clip-path: polygon(0 0, 100% 0, 50% 64%);
+  clip-path: polygon(0 0, 100% 0, 50% var(--flap-tip));
   box-shadow: inset 0 0 28px rgba(31, 0, 3, 0.24);
+}
+
+.flap-top-surface::before {
+  position: absolute;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+  background: var(--gold-sheen);
+  clip-path: polygon(0 0, 50% var(--flap-tip), 100% 0, calc(100% - 3px) 0, 50% calc(var(--flap-tip) - 3px), 3px 0);
 }
 
 .flap-top-surface::after {
@@ -259,7 +280,7 @@ body.book-open .invitation-app::before {
   inset: 0;
   opacity: 0;
   z-index: 1;
-  clip-path: polygon(0 0, 100% 0, 50% 64%);
+  clip-path: polygon(0 0, 100% 0, 50% var(--flap-tip));
   background:
     linear-gradient(180deg, rgba(21, 0, 3, 0.68), rgba(80, 12, 19, 0.22) 38%, rgba(255, 225, 194, 0.08)),
     var(--envelope-image) 52% 86% / 155% auto no-repeat;
@@ -488,12 +509,8 @@ body.book-open .invitation-app::before {
   }
 
   .flap-top {
+    --flap-tip: 52%;
     clip-path: none;
-  }
-
-  .flap-top-surface,
-  .flap-inner-shadow {
-    clip-path: polygon(0 0, 100% 0, 50% 52%);
   }
 
   .invitation-card-preview {

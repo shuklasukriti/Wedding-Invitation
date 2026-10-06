@@ -473,17 +473,22 @@ function runUnsealingSequence() {
   elements.seal.disabled = true;
   elements.envelopeScene.style.pointerEvents = "none";
 
-  if (!window.gsap) {
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (!window.gsap || reducedMotion) {
     completeUnsealingWithoutAnimation();
     return;
   }
 
-  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const durationScale = reducedMotion ? 0.05 : 1;
-  const envelopeDrop = Math.min(window.innerHeight * 0.16, 140);
+  const durationScale = 1;
   const mobile = window.matchMedia("(max-width: 719px)").matches;
+  const cardBounds = elements.cardPreview.getBoundingClientRect();
+  const envelopeBounds = elements.envelope.getBoundingClientRect();
+  const extractedCardTop = Math.max(0, (window.innerHeight - cardBounds.height) / 2);
+  const flapDepth = elements.topFlap.offsetHeight *
+    Number.parseFloat(window.getComputedStyle(elements.topFlap).getPropertyValue("--flap-tip")) / 100;
+  const envelopeDrop = Math.max(0, extractedCardTop + cardBounds.height + flapDepth + 32 - envelopeBounds.top);
   const lightEffects = mobile || window.matchMedia("(pointer: coarse)").matches;
-  const cardLift = mobile ? "-112%" : "-165%";
+  const cardLift = extractedCardTop - cardBounds.top - envelopeDrop;
   const timeline = window.gsap.timeline({ defaults: { ease: "power2.inOut" } });
   const revealTargets = elements.bookContainer.querySelectorAll(".page-inner-surface > *");
 
@@ -539,64 +544,26 @@ function runUnsealingSequence() {
       ...(!lightEffects && { boxShadow: "0 18px 24px -12px rgba(23, 0, 2, 0.46), inset 0 0 25px rgba(113, 71, 27, 0.1)" }),
       ease: "power2.inOut"
     }, 1.46 * durationScale)
-    .call(lightEffects ? prepareMobileBookStage : promoteCardPreview, [], 2.63 * durationScale)
-    .to(elements.envelope, {
-      ...(!lightEffects && { scale: 0.9 }),
-      opacity: 0,
-      duration: (lightEffects ? 0 : 0.58) * durationScale,
-      ease: "power2.in"
-    }, (lightEffects ? 3.25 : 2.64) * durationScale)
-    .to(elements.tableVignette, {
-      ...(!lightEffects && { scale: 0.92 }),
-      opacity: 0,
-      duration: (lightEffects ? 0 : 0.58) * durationScale
-    }, (lightEffects ? 3.25 : 2.64) * durationScale)
-    .to(lightEffects ? elements.bookShell : elements.cardPreview, {
-      ...(lightEffects
-        ? { x: 0, y: 0, scaleX: 1, scaleY: 1 }
-        : { top: 0, left: 0, width: "100vw", height: "100dvh", borderRadius: 0 }),
+    .call(promoteCardPreview, [], 2.63 * durationScale)
+    .to(elements.cardPreview, {
+      top: 0,
+      left: 0,
+      width: "100vw",
+      height: "100dvh",
+      borderRadius: 0,
       duration: 0.95 * durationScale,
       ease: "power3.inOut"
     }, 2.66 * durationScale)
-    .call(prepareBookStage, [], (lightEffects ? 2.63 : 3.61) * durationScale)
-    .to(elements.bookStage, {
-      opacity: 1,
-      duration: (lightEffects ? 0.55 : 0) * durationScale
-    }, (lightEffects ? 2.63 : 3.61) * durationScale)
-    .to(elements.bookShell, {
-      scale: 1,
-      duration: (lightEffects ? 0 : 0.48) * durationScale,
-      ease: "power2.out"
-    }, 3.61 * durationScale)
+    .call(prepareBookStage, [], 3.64 * durationScale)
+    .set(elements.bookStage, { opacity: 1 }, 3.64 * durationScale)
+    .set(elements.bookShell, { scale: 1 }, 3.64 * durationScale)
+    .set(revealTargets, { opacity: 1 }, 3.64 * durationScale)
     .to(elements.cardPreview, {
       opacity: 0,
-      duration: (lightEffects ? 0.55 : 0.42) * durationScale,
+      duration: 0.42 * durationScale,
       ease: "power1.inOut"
-    }, (lightEffects ? 2.63 : 3.74) * durationScale)
-    .to(revealTargets, {
-      opacity: 1,
-      duration: (lightEffects ? 0 : 0.56) * durationScale,
-      stagger: (lightEffects ? 0 : 0.025) * durationScale,
-      ease: "power1.out"
-    }, (lightEffects ? 3.61 : 4.08) * durationScale)
+    }, 3.74 * durationScale)
     .call(finishUnsealing);
-}
-
-function prepareMobileBookStage() {
-  const cardBounds = elements.cardPreview.getBoundingClientRect();
-  window.gsap.set(elements.bookShell, {
-    transformOrigin: "0 0",
-    x: 0,
-    y: 0,
-    scale: 1
-  });
-  const bookBounds = elements.bookShell.getBoundingClientRect();
-  window.gsap.set(elements.bookShell, {
-    x: cardBounds.left - bookBounds.left,
-    y: cardBounds.top - bookBounds.top,
-    scaleX: cardBounds.width / bookBounds.width,
-    scaleY: cardBounds.height / bookBounds.height
-  });
 }
 
 function promoteCardPreview() {
@@ -605,6 +572,7 @@ function promoteCardPreview() {
   elements.cardPreview.classList.add("is-extracting");
   window.gsap.set(elements.cardPreview, { clearProps: "transform" });
   window.gsap.set(elements.cardPreview, {
+    zIndex: 50,
     top: bounds.top,
     left: bounds.left,
     width: bounds.width,
@@ -629,6 +597,7 @@ function finishUnsealing() {
 
 function prepareBookStage() {
   document.body.classList.add("book-open");
+  elements.envelopeScene.hidden = true;
   elements.bookStage.hidden = false;
   elements.bookStage.style.visibility = "";
   elements.bookStage.setAttribute("aria-hidden", "true");
