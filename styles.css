@@ -1180,6 +1180,33 @@ button.action-button {
   .page-inner-surface { padding: 42px 38px; }
 }
 
+@media (max-width: 719px), (pointer: coarse) {
+  .flap-top {
+    filter: none;
+  }
+
+  .flap-left,
+  .flap-right,
+  .flap-bottom,
+  .flap-top-surface {
+    background-image: var(--panel-light), var(--envelope-image);
+    background-blend-mode: soft-light, multiply;
+  }
+
+  .invitation-card-preview.is-extracting {
+    will-change: transform, opacity;
+  }
+
+  .page-container {
+    background-image: var(--paper-image),
+      radial-gradient(circle at 38% 23%, #fffdf7 0, #faf6ee 58%, #eee4d3 112%);
+  }
+
+  .page-container::after {
+    mix-blend-mode: normal;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -6,7 +6,7 @@ A mobile-first, config-driven wedding invitation with a GSAP envelope reveal and
 
 Edit `config.json` to change names, copy, dates, events, venue details, contact links, colors, fonts, motifs, or asset paths. The HTML and CSS do not need to change when pages are reordered or duplicated.
 
-`assets.sharedPaperTexture` controls both the envelope and booklet paper. Replace that file in place or change this single path to update both; set it to an empty string only when you want the separate `envelopeOuter` and `paperTexture` fallback paths.
+`assets.sharedPaperTexture` controls both the envelope and booklet paper. On narrow or touch screens, `assets.mobilePaperTexture` uses a smaller version for smoother animations; leave it empty to use the shared image everywhere. Replace the shared file in place or change its path to update non-touch desktop; set it to an empty string only when you want the separate `envelopeOuter` and `paperTexture` fallback paths.
 
 The configured image files are optional. If they are absent, the invitation uses built-in CSS paper, wood, foil, and wax textures.
 

@@ -55,6 +55,9 @@ async function boot() {
     await applyTheme(INVITATION_CONFIG);
     populateInterface(INVITATION_CONFIG);
     renderBookPages(INVITATION_CONFIG.pages);
+    elements.bookStage.style.visibility = "hidden";
+    elements.bookStage.hidden = false;
+    initializeFlipbook();
     bindInterfaceEvents();
 
     elements.loading.hidden = true;
@@ -95,8 +98,11 @@ function validateConfig(config) {
 async function applyTheme(config) {
   const root = document.documentElement;
   const { theme, assets } = config;
-  const envelopeTexture = assets.sharedPaperTexture || assets.envelopeOuter;
-  const bookletTexture = assets.sharedPaperTexture || assets.paperTexture;
+  const sharedPaperTexture = window.matchMedia("(max-width: 719px), (pointer: coarse)").matches
+    ? assets.mobilePaperTexture || assets.sharedPaperTexture
+    : assets.sharedPaperTexture;
+  const envelopeTexture = sharedPaperTexture || assets.envelopeOuter;
+  const bookletTexture = sharedPaperTexture || assets.paperTexture;
   const variables = {
     "--font-display": theme.fontDisplay,
     "--font-heading": theme.fontHeading,
@@ -354,7 +360,9 @@ function runUnsealingSequence() {
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const durationScale = reducedMotion ? 0.05 : 1;
   const envelopeDrop = Math.min(window.innerHeight * 0.16, 140);
-  const cardLift = window.matchMedia("(max-width: 719px)").matches ? "-112%" : "-165%";
+  const mobile = window.matchMedia("(max-width: 719px)").matches;
+  const lightEffects = mobile || window.matchMedia("(pointer: coarse)").matches;
+  const cardLift = mobile ? "-112%" : "-165%";
   const timeline = window.gsap.timeline({ defaults: { ease: "power2.inOut" } });
   const revealTargets = elements.bookContainer.querySelectorAll(".page-inner-surface > *");
 
@@ -367,7 +375,7 @@ function runUnsealingSequence() {
     .to(elements.topFlap, {
       rotateX: 90,
       z: 10,
-      filter: "brightness(0.62) drop-shadow(0 14px 10px rgba(20, 0, 3, 0.48))",
+      ...(!lightEffects && { filter: "brightness(0.62) drop-shadow(0 14px 10px rgba(20, 0, 3, 0.48))" }),
       duration: 0.54 * durationScale,
       ease: "power2.in"
     }, 0.34 * durationScale)
@@ -378,7 +386,7 @@ function runUnsealingSequence() {
     .to(elements.topFlap, {
       rotateX: 180,
       z: -2,
-      filter: "brightness(0.84) drop-shadow(0 -9px 12px rgba(20, 0, 3, 0.32))",
+      ...(!lightEffects && { filter: "brightness(0.84) drop-shadow(0 -9px 12px rgba(20, 0, 3, 0.32))" }),
       duration: 0.54 * durationScale,
       ease: "power2.out"
     }, 0.88 * durationScale)
@@ -410,7 +418,7 @@ function runUnsealingSequence() {
       boxShadow: "0 18px 24px -12px rgba(23, 0, 2, 0.46), inset 0 0 25px rgba(113, 71, 27, 0.1)",
       ease: "power2.inOut"
     }, 1.46 * durationScale)
-    .call(promoteCardPreview, [], 2.63 * durationScale)
+    .call(promoteCardPreview, [lightEffects], 2.63 * durationScale)
     .to(elements.envelope, {
       scale: 0.9,
       opacity: 0,
@@ -423,11 +431,9 @@ function runUnsealingSequence() {
       duration: 0.58 * durationScale
     }, 2.64 * durationScale)
     .to(elements.cardPreview, {
-      top: 0,
-      left: 0,
-      width: "100vw",
-      height: "100dvh",
-      borderRadius: 0,
+      ...(lightEffects
+        ? { x: 0, y: 0, scaleX: 1, scaleY: 1 }
+        : { top: 0, left: 0, width: "100vw", height: "100dvh", borderRadius: 0 }),
       duration: 0.95 * durationScale,
       ease: "power3.inOut"
     }, 2.66 * durationScale)
@@ -452,22 +458,38 @@ function runUnsealingSequence() {
     .call(finishUnsealing);
 }
 
-function promoteCardPreview() {
+function promoteCardPreview(lightEffects) {
   const bounds = elements.cardPreview.getBoundingClientRect();
   elements.app.append(elements.cardPreview);
   elements.cardPreview.classList.add("is-extracting");
   window.gsap.set(elements.cardPreview, { clearProps: "transform" });
-  window.gsap.set(elements.cardPreview, {
-    top: bounds.top,
-    left: bounds.left,
-    width: bounds.width,
-    height: bounds.height,
-    x: 0,
-    y: 0,
-    xPercent: 0,
-    yPercent: 0,
-    scale: 1
-  });
+  if (lightEffects) {
+    window.gsap.set(elements.cardPreview, {
+      top: 0,
+      left: 0,
+      width: window.innerWidth,
+      height: window.innerHeight,
+      transformOrigin: "0 0",
+      x: bounds.left,
+      y: bounds.top,
+      xPercent: 0,
+      yPercent: 0,
+      scaleX: bounds.width / window.innerWidth,
+      scaleY: bounds.height / window.innerHeight
+    });
+  } else {
+    window.gsap.set(elements.cardPreview, {
+      top: bounds.top,
+      left: bounds.left,
+      width: bounds.width,
+      height: bounds.height,
+      x: 0,
+      y: 0,
+      xPercent: 0,
+      yPercent: 0,
+      scale: 1
+    });
+  }
 }
 
 function finishUnsealing() {
@@ -480,6 +502,7 @@ function finishUnsealing() {
 function prepareBookStage() {
   document.body.classList.add("book-open");
   elements.bookStage.hidden = false;
+  elements.bookStage.style.visibility = "";
   elements.bookStage.setAttribute("aria-hidden", "true");
   initializeFlipbook();
 }
@@ -488,6 +511,7 @@ function completeUnsealingWithoutAnimation() {
   document.body.classList.add("book-open");
   elements.envelopeScene.hidden = true;
   elements.bookStage.hidden = false;
+  elements.bookStage.style.visibility = "";
   elements.bookStage.style.opacity = "1";
   elements.bookShell.style.transform = "scale(1) translateY(0)";
   initializeFlipbook();
@@ -514,7 +538,7 @@ function initializeFlipbook() {
     showCover: false,
     mobileScrollSupport: false,
     usePortrait: true,
-    drawShadow: true,
+    drawShadow: !window.matchMedia("(max-width: 719px), (pointer: coarse)").matches,
     flippingTime: 980,
     autoSize: true,
     clickEventForward: true,

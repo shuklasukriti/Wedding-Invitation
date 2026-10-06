@@ -1,6 +1,7 @@
 {
   "assets": {
     "sharedPaperTexture": "assets/Paper-2.jpg",
+    "mobilePaperTexture": "assets/Paper-2-mobile.jpg",
     "woodBackdrop": "assets/textures/dark-walnut.jpg",
     "envelopeOuter": "assets/Paper-Outer-web.jpg",
     "waxSealTexture": "assets/Wax-Seal-web.png",
