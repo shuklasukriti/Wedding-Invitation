@@ -397,7 +397,7 @@ function runUnsealingSequence() {
     .to(elements.seal, {
       scale: 0.96,
       opacity: 0,
-      filter: "drop-shadow(0 -8px 10px rgba(0, 0, 0, 0.28))",
+      ...(!lightEffects && { filter: "drop-shadow(0 -8px 10px rgba(0, 0, 0, 0.28))" }),
       duration: 0.48 * durationScale,
       ease: "power1.in"
     }, 0.9 * durationScale)
@@ -415,81 +415,85 @@ function runUnsealingSequence() {
     .to(elements.cardPreview, {
       y: cardLift,
       duration: 1.15 * durationScale,
-      boxShadow: "0 18px 24px -12px rgba(23, 0, 2, 0.46), inset 0 0 25px rgba(113, 71, 27, 0.1)",
+      ...(!lightEffects && { boxShadow: "0 18px 24px -12px rgba(23, 0, 2, 0.46), inset 0 0 25px rgba(113, 71, 27, 0.1)" }),
       ease: "power2.inOut"
     }, 1.46 * durationScale)
-    .call(promoteCardPreview, [lightEffects], 2.63 * durationScale)
+    .call(lightEffects ? prepareMobileBookStage : promoteCardPreview, [], 2.63 * durationScale)
     .to(elements.envelope, {
-      scale: 0.9,
+      ...(!lightEffects && { scale: 0.9 }),
       opacity: 0,
-      duration: 0.58 * durationScale,
+      duration: (lightEffects ? 0 : 0.58) * durationScale,
       ease: "power2.in"
-    }, 2.64 * durationScale)
+    }, (lightEffects ? 3.25 : 2.64) * durationScale)
     .to(elements.tableVignette, {
-      scale: 0.92,
+      ...(!lightEffects && { scale: 0.92 }),
       opacity: 0,
-      duration: 0.58 * durationScale
-    }, 2.64 * durationScale)
-    .to(elements.cardPreview, {
+      duration: (lightEffects ? 0 : 0.58) * durationScale
+    }, (lightEffects ? 3.25 : 2.64) * durationScale)
+    .to(lightEffects ? elements.bookShell : elements.cardPreview, {
       ...(lightEffects
         ? { x: 0, y: 0, scaleX: 1, scaleY: 1 }
         : { top: 0, left: 0, width: "100vw", height: "100dvh", borderRadius: 0 }),
       duration: 0.95 * durationScale,
       ease: "power3.inOut"
     }, 2.66 * durationScale)
-    .call(prepareBookStage, [], 3.61 * durationScale)
-    .set(elements.bookStage, { opacity: 1 }, 3.61 * durationScale)
+    .call(prepareBookStage, [], (lightEffects ? 2.63 : 3.61) * durationScale)
+    .to(elements.bookStage, {
+      opacity: 1,
+      duration: (lightEffects ? 0.55 : 0) * durationScale
+    }, (lightEffects ? 2.63 : 3.61) * durationScale)
     .to(elements.bookShell, {
       scale: 1,
-      duration: 0.48 * durationScale,
+      duration: (lightEffects ? 0 : 0.48) * durationScale,
       ease: "power2.out"
     }, 3.61 * durationScale)
     .to(elements.cardPreview, {
       opacity: 0,
-      duration: 0.42 * durationScale,
+      duration: (lightEffects ? 0.55 : 0.42) * durationScale,
       ease: "power1.inOut"
-    }, 3.74 * durationScale)
+    }, (lightEffects ? 2.63 : 3.74) * durationScale)
     .to(revealTargets, {
       opacity: 1,
-      duration: 0.56 * durationScale,
-      stagger: 0.025 * durationScale,
+      duration: (lightEffects ? 0 : 0.56) * durationScale,
+      stagger: (lightEffects ? 0 : 0.025) * durationScale,
       ease: "power1.out"
-    }, 4.08 * durationScale)
+    }, (lightEffects ? 3.61 : 4.08) * durationScale)
     .call(finishUnsealing);
 }
 
-function promoteCardPreview(lightEffects) {
+function prepareMobileBookStage() {
+  const cardBounds = elements.cardPreview.getBoundingClientRect();
+  window.gsap.set(elements.bookShell, {
+    transformOrigin: "0 0",
+    x: 0,
+    y: 0,
+    scale: 1
+  });
+  const bookBounds = elements.bookShell.getBoundingClientRect();
+  window.gsap.set(elements.bookShell, {
+    x: cardBounds.left - bookBounds.left,
+    y: cardBounds.top - bookBounds.top,
+    scaleX: cardBounds.width / bookBounds.width,
+    scaleY: cardBounds.height / bookBounds.height
+  });
+}
+
+function promoteCardPreview() {
   const bounds = elements.cardPreview.getBoundingClientRect();
   elements.app.append(elements.cardPreview);
   elements.cardPreview.classList.add("is-extracting");
   window.gsap.set(elements.cardPreview, { clearProps: "transform" });
-  if (lightEffects) {
-    window.gsap.set(elements.cardPreview, {
-      top: 0,
-      left: 0,
-      width: window.innerWidth,
-      height: window.innerHeight,
-      transformOrigin: "0 0",
-      x: bounds.left,
-      y: bounds.top,
-      xPercent: 0,
-      yPercent: 0,
-      scaleX: bounds.width / window.innerWidth,
-      scaleY: bounds.height / window.innerHeight
-    });
-  } else {
-    window.gsap.set(elements.cardPreview, {
-      top: bounds.top,
-      left: bounds.left,
-      width: bounds.width,
-      height: bounds.height,
-      x: 0,
-      y: 0,
-      xPercent: 0,
-      yPercent: 0,
-      scale: 1
-    });
-  }
+  window.gsap.set(elements.cardPreview, {
+    top: bounds.top,
+    left: bounds.left,
+    width: bounds.width,
+    height: bounds.height,
+    x: 0,
+    y: 0,
+    xPercent: 0,
+    yPercent: 0,
+    scale: 1
+  });
 }
 
 function finishUnsealing() {
@@ -543,7 +547,7 @@ function initializeFlipbook() {
     autoSize: true,
     clickEventForward: true,
     disableFlipByClick: true,
-    useMouseEvents: true,
+    useMouseEvents: false,
     showPageCorners: true,
     swipeDistance: 22
   });
@@ -607,75 +611,11 @@ function updatePageStatus() {
 }
 
 function bindTapNavigation() {
-  let pointerStart = null;
-
-  const interceptMobileTap = (clientX, clientY, target, event) => {
-    if (!window.matchMedia("(max-width: 719px)").matches || !pointerStart || isInteractiveTarget(target)) {
-      return false;
-    }
-
-    const movement = Math.hypot(clientX - pointerStart.x, clientY - pointerStart.y);
-    const elapsed = performance.now() - pointerStart.time;
-    if (movement > 10 || elapsed > 420) return false;
-
-    pointerStart = null;
-    if (event.cancelable) event.preventDefault();
-    event.stopImmediatePropagation();
-    if (pageFlip && typeof pageFlip.userStop === "function") {
-      pageFlip.userStop({ x: 0, y: 0 }, true);
-    }
+  elements.bookContainer.addEventListener("click", (event) => {
+    if (isInteractiveTarget(event.target)) return;
     const bounds = elements.bookContainer.getBoundingClientRect();
-    const direction = clientX < bounds.left + bounds.width / 2 ? -1 : 1;
-    turnPage(direction);
-    return true;
-  };
-
-  elements.bookContainer.addEventListener("pointerdown", (event) => {
-    pointerStart = {
-      x: event.clientX,
-      y: event.clientY,
-      time: performance.now()
-    };
-  }, { passive: true });
-
-  window.addEventListener("mouseup", (event) => {
-    interceptMobileTap(event.clientX, event.clientY, event.target, event);
-  }, true);
-
-  window.addEventListener("touchend", (event) => {
-    const touch = event.changedTouches[0];
-    if (touch) interceptMobileTap(touch.clientX, touch.clientY, event.target, event);
-  }, { capture: true, passive: false });
-
-  elements.bookContainer.addEventListener("pointerup", (event) => {
-    if (window.matchMedia("(max-width: 719px)").matches) {
-      return;
-    }
-
-    if (!pointerStart || isInteractiveTarget(event.target)) {
-      pointerStart = null;
-      return;
-    }
-
-    const movement = Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y);
-    const elapsed = performance.now() - pointerStart.time;
-    pointerStart = null;
-    if (movement > 10 || elapsed > 420) return;
-
-    const bounds = elements.bookContainer.getBoundingClientRect();
-    const horizontalPosition = (event.clientX - bounds.left) / bounds.width;
-    const verticalPosition = (event.clientY - bounds.top) / bounds.height;
-    const isNativeCorner = (horizontalPosition <= 0.35 || horizontalPosition >= 0.65)
-      && (verticalPosition <= 0.24 || verticalPosition >= 0.76);
-    if (isNativeCorner) return;
-
-    if (horizontalPosition <= 0.4) turnPage(-1);
-    else if (horizontalPosition >= 0.6) turnPage(1);
-  }, { passive: true });
-
-  elements.bookContainer.addEventListener("pointercancel", () => {
-    pointerStart = null;
-  }, { passive: true });
+    turnPage(event.clientX < bounds.left + bounds.width / 2 ? -1 : 1);
+  });
 }
 
 function isInteractiveTarget(target) {

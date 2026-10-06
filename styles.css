@@ -567,7 +567,7 @@ body.book-open .invitation-app::before {
 .book-container {
   width: 100%;
   height: 100%;
-  touch-action: none;
+  touch-action: manipulation;
   user-select: none;
   -webkit-user-select: none;
 }
@@ -575,7 +575,7 @@ body.book-open .invitation-app::before {
 .book-container canvas,
 .book-container .stf__parent,
 .book-container .stf__wrapper {
-  touch-action: none !important;
+  touch-action: manipulation !important;
 }
 
 .book-controls {
@@ -1183,6 +1183,7 @@ button.action-button {
 @media (max-width: 719px), (pointer: coarse) {
   .flap-top {
     filter: none;
+    backface-visibility: hidden;
   }
 
   .flap-left,
@@ -1193,8 +1194,11 @@ button.action-button {
     background-blend-mode: soft-light, multiply;
   }
 
-  .invitation-card-preview.is-extracting {
-    will-change: transform, opacity;
+  .flap-left,
+  .flap-right,
+  .flap-bottom,
+  .wax-seal.has-image {
+    filter: none;
   }
 
   .page-container {
