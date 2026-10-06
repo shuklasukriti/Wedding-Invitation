@@ -1,12 +1,12 @@
 # Wedding Invitation
 
-A mobile-first, config-driven wedding invitation with a GSAP envelope reveal and StPageFlip booklet.
+A mobile-first, config-driven wedding invitation with a GSAP envelope reveal and vertically scrolling sections on a repeating paper texture.
 
 ## Edit the invitation
 
-Edit `config.json` to change names, copy, dates, events, venue details, contact links, colors, fonts, motifs, or asset paths. The HTML and CSS do not need to change when pages are reordered or duplicated.
+Edit `config.json` to change names, copy, dates, events, venue details, contact links, colors, fonts, motifs, or asset paths. The existing `pages` array generates the scrolling sections in order. The HTML and CSS do not need to change when pages are reordered or duplicated.
 
-`assets.sharedPaperTexture` controls both the envelope and booklet paper. On narrow or touch screens, `assets.mobilePaperTexture` uses a smaller version for smoother animations; leave it empty to use the shared image everywhere. Replace the shared file in place or change its path to update non-touch desktop; set it to an empty string only when you want the separate `envelopeOuter` and `paperTexture` fallback paths.
+`assets.sharedPaperTexture` controls both the envelope and the repeating invitation paper. On narrow or touch screens, `assets.mobilePaperTexture` uses a smaller version for smoother animations; leave it empty to use the shared image everywhere. Replace the shared file in place or change its path to update non-touch desktop; set it to an empty string only when you want the separate `envelopeOuter` and `paperTexture` fallback paths.
 
 The configured image files are optional. If they are absent, the invitation uses built-in CSS paper, wood, foil, and wax textures.
 
@@ -20,4 +20,4 @@ python3 -m http.server 4173
 
 Then open `http://localhost:4173`.
 
-The GSAP and StPageFlip browser bundles, plus the selected web fonts, load from CDNs and require a network connection. If either animation library is unavailable, the envelope opens immediately and the booklet remains usable as a static paged view.
+The GSAP browser bundle and selected web fonts load from CDNs and require a network connection. If GSAP is unavailable, the envelope opens immediately and all invitation sections remain readable by scrolling. No page-flip library is required.

@@ -1,8 +1,6 @@
 "use strict";
 
 let INVITATION_CONFIG = null;
-let pageFlip = null;
-let fallbackPageIndex = 0;
 let unsealing = false;
 
 const elements = {
@@ -25,10 +23,6 @@ const elements = {
   bookStage: document.getElementById("book-stage"),
   bookShell: document.getElementById("book-shell"),
   bookContainer: document.getElementById("book-container"),
-  bookControls: document.getElementById("book-controls"),
-  previousPage: document.getElementById("previous-page"),
-  nextPage: document.getElementById("next-page"),
-  pageStatus: document.getElementById("page-status"),
   errorState: document.getElementById("error-state"),
   errorTitle: document.getElementById("error-title"),
   errorBody: document.getElementById("error-body")
@@ -54,10 +48,9 @@ async function boot() {
     validateConfig(INVITATION_CONFIG);
     await applyTheme(INVITATION_CONFIG);
     populateInterface(INVITATION_CONFIG);
-    renderBookPages(INVITATION_CONFIG.pages);
+    renderInvitationSections(INVITATION_CONFIG.pages);
     elements.bookStage.style.visibility = "hidden";
     elements.bookStage.hidden = false;
-    initializeFlipbook();
     bindInterfaceEvents();
 
     elements.loading.hidden = true;
@@ -161,11 +154,6 @@ function populateInterface(config) {
   elements.sealMonogram.textContent = envelope.sealMonogramText;
   elements.sealPrompt.textContent = envelope.sealPromptText;
   elements.seal.setAttribute("aria-label", ui.openSealAriaLabel);
-  elements.previousPage.setAttribute("aria-label", ui.previousPageLabel);
-  elements.previousPage.title = ui.previousPageLabel;
-  elements.nextPage.setAttribute("aria-label", ui.nextPageLabel);
-  elements.nextPage.title = ui.nextPageLabel;
-  elements.bookControls.setAttribute("aria-label", ui.bookControlsAriaLabel);
   elements.bookContainer.setAttribute("aria-label", ui.bookAriaLabel);
 
   elements.sealImage.addEventListener("load", () => {
@@ -181,31 +169,32 @@ function populateInterface(config) {
   elements.sealImage.src = assets.waxSealTexture;
 }
 
-function renderBookPages(pages) {
+function renderInvitationSections(pages) {
   const fragment = document.createDocumentFragment();
-  pages.forEach((page) => fragment.append(renderPageNode(page)));
+  pages.forEach((page, index) => fragment.append(renderSectionNode(page, index)));
   elements.bookContainer.replaceChildren(fragment);
 }
 
-function renderPageNode(pageData) {
+function renderSectionNode(pageData, index) {
   const renderer = TEMPLATE_RENDERERS[pageData.template];
   if (!renderer) {
     throw new TypeError(`No renderer exists for template ${pageData.template}.`);
   }
 
-  const page = document.createElement("div");
+  const page = document.createElement("section");
   page.className = `page-container page-${pageData.template.toLowerCase()}`;
-  page.dataset.density = "soft";
   page.dataset.pageNumber = String(pageData.pageNumber);
   page.innerHTML = `
     <div class="page-inner-surface">
       ${renderCornerFiligree()}
       <div class="template-content">
         ${renderer(pageData.content)}
-        <span class="page-number-mark" aria-hidden="true">${escapeHtml(pageData.pageNumber)}</span>
       </div>
     </div>
   `;
+  const heading = page.querySelector("h1, h2");
+  heading.id = `invitation-section-${index + 1}`;
+  page.setAttribute("aria-labelledby", heading.id);
   return page;
 }
 
@@ -326,24 +315,7 @@ function createWhatsappUrl(actions) {
 
 function bindInterfaceEvents() {
   elements.seal.addEventListener("click", runUnsealingSequence, { once: true });
-  elements.previousPage.addEventListener("click", () => turnPage(-1));
-  elements.nextPage.addEventListener("click", () => turnPage(1));
   elements.bookContainer.addEventListener("click", handleBookAction);
-  bindTapNavigation();
-
-  let resizeFrame = 0;
-  window.addEventListener("resize", () => {
-    cancelAnimationFrame(resizeFrame);
-    resizeFrame = requestAnimationFrame(updateViewportMetrics);
-  }, { passive: true });
-  updateViewportMetrics();
-}
-
-function updateViewportMetrics() {
-  document.documentElement.style.setProperty("--viewport-height", `${window.innerHeight}px`);
-  if (pageFlip && typeof pageFlip.update === "function") {
-    pageFlip.update();
-  }
 }
 
 function runUnsealingSequence() {
@@ -500,7 +472,10 @@ function finishUnsealing() {
   elements.envelopeScene.hidden = true;
   elements.envelopeScene.removeAttribute("style");
   elements.bookStage.removeAttribute("aria-hidden");
+  elements.bookStage.inert = false;
   elements.cardPreview.remove();
+  document.body.classList.add("invitation-ready");
+  elements.bookContainer.focus({ preventScroll: true });
 }
 
 function prepareBookStage() {
@@ -508,7 +483,6 @@ function prepareBookStage() {
   elements.bookStage.hidden = false;
   elements.bookStage.style.visibility = "";
   elements.bookStage.setAttribute("aria-hidden", "true");
-  initializeFlipbook();
 }
 
 function completeUnsealingWithoutAnimation() {
@@ -518,108 +492,7 @@ function completeUnsealingWithoutAnimation() {
   elements.bookStage.style.visibility = "";
   elements.bookStage.style.opacity = "1";
   elements.bookShell.style.transform = "scale(1) translateY(0)";
-  initializeFlipbook();
-}
-
-function initializeFlipbook() {
-  if (pageFlip || elements.bookContainer.classList.contains("is-static-fallback")) return;
-
-  if (!window.St?.PageFlip) {
-    initializeStaticFallback();
-    return;
-  }
-
-  const dimensions = calculatePageDimensions();
-  pageFlip = new window.St.PageFlip(elements.bookContainer, {
-    width: dimensions.width,
-    height: dimensions.height,
-    size: "stretch",
-    minWidth: 280,
-    maxWidth: 550,
-    minHeight: 420,
-    maxHeight: 900,
-    maxShadowOpacity: 0.38,
-    showCover: false,
-    mobileScrollSupport: false,
-    usePortrait: true,
-    drawShadow: !window.matchMedia("(max-width: 719px), (pointer: coarse)").matches,
-    flippingTime: 980,
-    autoSize: true,
-    clickEventForward: true,
-    disableFlipByClick: true,
-    useMouseEvents: false,
-    showPageCorners: true,
-    swipeDistance: 22
-  });
-
-  pageFlip.loadFromHTML(elements.bookContainer.querySelectorAll(".page-container"));
-  pageFlip.on("flip", () => updatePageStatus());
-  pageFlip.on("changeOrientation", () => updatePageStatus());
-  updatePageStatus();
-}
-
-function calculatePageDimensions() {
-  const portrait = window.innerWidth < 720 || window.innerHeight > window.innerWidth;
-  if (portrait) {
-    return {
-      width: Math.round(clamp(window.innerWidth, 280, 550)),
-      height: Math.round(clamp(window.innerHeight, 420, 900))
-    };
-  }
-  const widthBudget = portrait ? window.innerWidth * 0.92 : window.innerWidth * 0.44;
-  const heightBudget = window.innerHeight * 0.76;
-  const width = clamp(Math.min(widthBudget, heightBudget * 0.68), 280, 550);
-  const height = clamp(Math.min(heightBudget, width / 0.68), 420, 800);
-  return { width: Math.round(width), height: Math.round(height) };
-}
-
-function initializeStaticFallback() {
-  elements.bookContainer.classList.add("is-static-fallback");
-  fallbackPageIndex = 0;
-  showStaticPage(fallbackPageIndex);
-}
-
-function showStaticPage(index) {
-  const pages = [...elements.bookContainer.querySelectorAll(".page-container")];
-  fallbackPageIndex = clamp(index, 0, pages.length - 1);
-  pages.forEach((page, pageIndex) => page.classList.toggle("is-active", pageIndex === fallbackPageIndex));
-  updatePageStatus();
-}
-
-function turnPage(direction) {
-  if (pageFlip) {
-    const settings = pageFlip.getSettings();
-    const clickGuard = settings.disableFlipByClick;
-    settings.disableFlipByClick = false;
-    if (direction > 0) pageFlip.flipNext("top");
-    else pageFlip.flipPrev("top");
-    settings.disableFlipByClick = clickGuard;
-    return;
-  }
-  showStaticPage(fallbackPageIndex + direction);
-}
-
-function updatePageStatus() {
-  const total = INVITATION_CONFIG.pages.length;
-  const currentIndex = pageFlip ? pageFlip.getCurrentPageIndex() : fallbackPageIndex;
-  const current = clamp(currentIndex + 1, 1, total);
-  elements.pageStatus.textContent = INVITATION_CONFIG.ui.pageStatusTemplate
-    .replace("{current}", String(current))
-    .replace("{total}", String(total));
-  elements.previousPage.disabled = current <= 1;
-  elements.nextPage.disabled = current >= total;
-}
-
-function bindTapNavigation() {
-  elements.bookContainer.addEventListener("click", (event) => {
-    if (isInteractiveTarget(event.target)) return;
-    const bounds = elements.bookContainer.getBoundingClientRect();
-    turnPage(event.clientX < bounds.left + bounds.width / 2 ? -1 : 1);
-  });
-}
-
-function isInteractiveTarget(target) {
-  return target instanceof Element && Boolean(target.closest("a, button, input, select, textarea"));
+  finishUnsealing();
 }
 
 function handleBookAction(event) {
@@ -722,8 +595,4 @@ function escapeHtml(value) {
 
 function escapeAttribute(value) {
   return escapeHtml(value).replaceAll("`", "&#096;");
-}
-
-function clamp(value, minimum, maximum) {
-  return Math.min(Math.max(value, minimum), maximum);
 }

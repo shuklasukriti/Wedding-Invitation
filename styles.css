@@ -520,153 +520,64 @@ body.book-open .invitation-app::before {
   }
 }
 
-/* Flipbook stage */
+/* Invitation reveal and scrolling sections */
 .book-stage {
   position: fixed;
   inset: 0;
-  display: grid;
-  grid-template-rows: minmax(0, 1fr);
-  gap: 0;
-  align-items: center;
-  padding: 0;
+  overflow: hidden;
   opacity: 0;
   background:
-    var(--paper-image) center / cover,
-    radial-gradient(circle at 38% 23%, #fffdf7 0, var(--parchment-bg) 62%, #eee4d3 120%);
+    var(--paper-image) center top / min(100vw, 720px) auto repeat,
+    var(--parchment-bg);
+}
+
+body.invitation-ready .book-stage {
+  position: relative;
+  inset: auto;
+  overflow: visible;
 }
 
 .book-shell {
   position: relative;
-  display: grid;
-  width: 100vw;
+  width: 100%;
   height: 100dvh;
-  min-height: 0;
-  place-items: center;
-  margin: auto;
-  perspective: 1800px;
   transform: scale(0.96);
   transform-origin: center;
 }
 
-.book-shell::after {
-  position: absolute;
-  right: 6%;
-  bottom: -13px;
-  left: 6%;
-  z-index: -1;
-  height: 24px;
-  content: "";
-  pointer-events: none;
-  display: none;
-  background: rgba(0, 0, 0, 0.48);
-  border-radius: 50%;
-  filter: blur(12px);
-  transform: perspective(200px) rotateX(66deg);
+body.invitation-ready .book-shell {
+  height: auto;
 }
 
 .book-container {
   width: 100%;
-  height: 100%;
-  touch-action: manipulation;
-  user-select: none;
-  -webkit-user-select: none;
+  touch-action: pan-y pinch-zoom;
 }
 
-.book-container canvas,
-.book-container .stf__parent,
-.book-container .stf__wrapper {
-  touch-action: manipulation !important;
-}
-
-.book-controls {
-  display: none;
-  grid-template-columns: 44px minmax(110px, auto) 44px;
-  gap: 12px;
-  align-items: center;
-  justify-content: center;
-  min-height: 44px;
-}
-
-.page-control {
-  display: grid;
-  width: 44px;
-  height: 44px;
-  place-items: center;
-  padding: 0 0 3px;
-  color: #f4dfb9;
-  cursor: pointer;
-  background: rgba(61, 15, 13, 0.86);
-  border: 1px solid rgba(197, 160, 89, 0.48);
-  border-radius: 50%;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-}
-
-.page-control span {
-  font-family: Georgia, serif;
-  font-size: 2rem;
-  line-height: 1;
-}
-
-.page-control:disabled {
-  cursor: default;
-  opacity: 0.28;
-}
-
-.page-control:focus-visible,
 .action-button:focus-visible {
   outline: 2px solid #f2d79c;
   outline-offset: 3px;
 }
 
-.page-status {
-  min-width: 110px;
-  margin: 0;
-  color: rgba(246, 229, 199, 0.8);
-  font-size: 0.65rem;
-  font-weight: 600;
-  letter-spacing: 0.13em;
-  text-align: center;
-  text-transform: uppercase;
-  text-shadow: 0 2px 5px rgba(0, 0, 0, 0.7);
-}
-
-/* Standardized dynamic pages */
+/* Config-driven sections */
 .page-container {
   position: relative;
   width: 100%;
-  height: 100%;
-  overflow: hidden;
   color: var(--ink-dark);
-  background:
-    var(--paper-image) center / cover,
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.42' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)' opacity='.035'/%3E%3C/svg%3E"),
-    radial-gradient(circle at 38% 23%, #fffdf7 0, #faf6ee 58%, #eee4d3 112%);
-  box-shadow: inset 0 0 28px rgba(95, 61, 34, 0.14);
+  border-bottom: 1px solid var(--antique-gold);
 }
 
-.page-container::after {
-  position: absolute;
-  inset: 0;
-  z-index: 6;
-  content: "";
-  pointer-events: none;
-  background:
-    linear-gradient(90deg, rgba(62, 31, 18, 0.11), transparent 5%, transparent 95%, rgba(62, 31, 18, 0.08)),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.32), transparent 8%, transparent 92%, rgba(96, 58, 24, 0.08));
-  mix-blend-mode: multiply;
+.page-container:last-child {
+  border-bottom: 0;
 }
 
 .page-inner-surface {
-  position: absolute;
-  inset: 0;
+  position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 100%;
-  padding: clamp(26px, 7%, 46px) clamp(23px, 7%, 44px);
-  box-shadow:
-    inset 0 0 0 1px var(--antique-gold),
-    inset 0 0 0 4px var(--parchment-bg),
-    inset 0 0 0 5px var(--antique-gold);
+  width: min(100%, 720px);
+  margin: 0 auto;
+  padding: max(48px, env(safe-area-inset-top)) 24px max(48px, env(safe-area-inset-bottom));
 }
 
 .corner-filigree {
@@ -694,15 +605,16 @@ body.book-open .invitation-app::before {
   flex: 1;
   flex-direction: column;
   min-height: 0;
+  overflow-wrap: anywhere;
 }
 
 .section-badge {
   align-self: center;
   margin: 0 0 8px;
   color: var(--deep-crimson);
-  font-size: clamp(0.48rem, 2vw, 0.64rem);
+  font-size: 0.7rem;
   font-weight: 600;
-  letter-spacing: 0.13em;
+  letter-spacing: 0;
   text-transform: uppercase;
 }
 
@@ -710,9 +622,9 @@ body.book-open .invitation-app::before {
   margin: 0;
   color: var(--deep-crimson);
   font-family: var(--font-heading);
-  font-size: clamp(1.45rem, 6.4vw, 2.2rem);
+  font-size: 2rem;
   font-weight: 400;
-  line-height: 0.98;
+  line-height: 1.15;
   text-align: center;
 }
 
@@ -721,7 +633,7 @@ body.book-open .invitation-app::before {
   gap: 8px;
   align-items: center;
   width: 74%;
-  margin: clamp(10px, 3vh, 20px) auto;
+  margin: 20px auto;
   color: var(--antique-gold);
   font-size: 0.52rem;
 }
@@ -738,18 +650,11 @@ body.book-open .invitation-app::before {
   transform: scaleX(-1);
 }
 
-.page-number-mark {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  color: rgba(107, 15, 26, 0.55);
-  font-family: var(--font-display);
-  font-size: 0.52rem;
-  text-align: center;
+/* Cover */
+.page-cover .page-inner-surface {
+  min-height: 100svh;
 }
 
-/* Cover */
 .page-cover .template-content {
   align-items: center;
   justify-content: center;
@@ -760,7 +665,7 @@ body.book-open .invitation-app::before {
   margin: 0 0 7px;
   color: var(--deep-crimson);
   font-family: var(--font-heading);
-  font-size: clamp(1rem, 4.5vw, 1.35rem);
+  font-size: 1.35rem;
   font-weight: 400;
 }
 
@@ -769,16 +674,16 @@ body.book-open .invitation-app::before {
   margin: 0;
   color: var(--ink-muted);
   font-family: var(--font-script);
-  font-size: clamp(0.76rem, 3.2vw, 1rem);
-  line-height: 1.28;
+  font-size: 1.05rem;
+  line-height: 1.5;
 }
 
 .cover-headline {
   margin: 0 0 8px;
   color: var(--ink-muted);
-  font-size: clamp(0.52rem, 2.3vw, 0.7rem);
+  font-size: 0.7rem;
   font-weight: 600;
-  letter-spacing: 0.12em;
+  letter-spacing: 0;
   text-transform: uppercase;
 }
 
@@ -791,7 +696,7 @@ body.book-open .invitation-app::before {
 .couple-name {
   color: var(--deep-crimson);
   font-family: var(--font-display);
-  font-size: clamp(1.75rem, 9vw, 3.2rem);
+  font-size: 2.5rem;
   font-weight: 700;
   line-height: 1.03;
 }
@@ -799,7 +704,7 @@ body.book-open .invitation-app::before {
 .couple-ampersand {
   color: var(--antique-gold);
   font-family: var(--font-script);
-  font-size: clamp(1.1rem, 5.2vw, 1.65rem);
+  font-size: 1.65rem;
   line-height: 0.9;
 }
 
@@ -808,30 +713,30 @@ body.book-open .invitation-app::before {
   width: 100%;
   grid-template-columns: 1fr 1fr;
   gap: 14px;
-  margin-top: 10px;
+  margin-top: 20px;
   color: var(--ink-muted);
-  font-size: clamp(0.46rem, 2.05vw, 0.64rem);
-  line-height: 1.38;
+  font-size: 0.75rem;
+  line-height: 1.6;
 }
 
 .couple-details p { margin: 0; }
 
 .wedding-date {
   max-width: 28em;
-  margin: clamp(11px, 3vh, 20px) 0 0;
+  margin: 24px 0 0;
   color: var(--deep-crimson);
   font-family: var(--font-script);
-  font-size: clamp(0.82rem, 3.5vw, 1.1rem);
+  font-size: 1.15rem;
   font-weight: 600;
-  line-height: 1.2;
+  line-height: 1.4;
 }
 
 .cover-bottom-note {
   margin: 12px 0 0;
   color: var(--ink-muted);
-  font-size: clamp(0.46rem, 2vw, 0.6rem);
+  font-size: 0.65rem;
   font-weight: 600;
-  letter-spacing: 0.12em;
+  letter-spacing: 0;
   text-transform: uppercase;
 }
 
@@ -843,11 +748,11 @@ body.book-open .invitation-app::before {
 .blessing-quote {
   position: relative;
   max-width: 27em;
-  margin: clamp(18px, 5vh, 36px) auto;
+  margin: 32px auto;
   color: var(--ink-muted);
   font-family: var(--font-script);
-  font-size: clamp(1.05rem, 4.8vw, 1.45rem);
-  line-height: 1.28;
+  font-size: 1.45rem;
+  line-height: 1.4;
   text-align: center;
 }
 
@@ -873,7 +778,7 @@ body.book-open .invitation-app::before {
   margin: 0 0 8px;
   color: var(--deep-crimson);
   font-family: var(--font-heading);
-  font-size: clamp(1rem, 4vw, 1.25rem);
+  font-size: 1.25rem;
   font-weight: 400;
 }
 
@@ -883,37 +788,27 @@ body.book-open .invitation-app::before {
   margin: 0;
   padding: 0;
   color: var(--ink-dark);
-  font-size: clamp(0.62rem, 2.7vw, 0.8rem);
-  line-height: 1.3;
+  font-size: 0.85rem;
+  line-height: 1.6;
   list-style: none;
 }
 
 .cultural-message {
   max-width: 31em;
-  margin: clamp(17px, 4vh, 30px) auto 0;
+  margin: 28px auto 0;
   color: var(--ink-muted);
-  font-size: clamp(0.62rem, 2.7vw, 0.8rem);
-  line-height: 1.55;
+  font-size: 0.85rem;
+  line-height: 1.7;
   text-align: center;
 }
 
 /* Itinerary */
-.page-itinerary .page-inner-surface {
-  padding: clamp(24px, 6%, 40px) clamp(19px, 5.5%, 38px);
-}
-
-.page-itinerary .section-title {
-  font-size: clamp(1.35rem, 5.8vw, 2rem);
-}
-
 .events-grid {
   display: grid;
-  flex: 1;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
   min-height: 0;
-  margin-top: 13px;
+  margin-top: 28px;
 }
 
 .event-card {
@@ -922,8 +817,7 @@ body.book-open .invitation-app::before {
   min-width: 0;
   min-height: 0;
   flex-direction: column;
-  padding: 9px 8px 8px 10px;
-  overflow: hidden;
+  padding: 18px;
   background: rgba(255, 253, 247, 0.45);
   border: 1px solid rgba(197, 160, 89, 0.36);
   border-left: 2px solid var(--antique-gold);
@@ -935,37 +829,35 @@ body.book-open .invitation-app::before {
   margin: 0 0 4px;
   color: var(--deep-crimson);
   font-family: var(--font-heading);
-  font-size: clamp(0.83rem, 3.55vw, 1.05rem);
+  font-size: 1.25rem;
   font-weight: 400;
-  line-height: 1.02;
+  line-height: 1.2;
 }
 
 .event-date {
   margin: 0;
   color: var(--ink-muted);
-  font-size: clamp(0.46rem, 1.9vw, 0.58rem);
+  font-size: 0.75rem;
   font-weight: 600;
-  line-height: 1.22;
+  line-height: 1.5;
 }
 
 .event-badges {
   display: flex;
   flex-wrap: wrap;
-  gap: 3px;
-  margin: 5px 0;
+  gap: 6px;
+  margin: 12px 0;
 }
 
 .time-badge,
 .attire-badge {
   display: inline-block;
   max-width: 100%;
-  padding: 3px 5px;
-  overflow: hidden;
+  padding: 5px 7px;
   color: #fff8e9;
-  font-size: clamp(0.42rem, 1.75vw, 0.53rem);
+  font-size: 0.7rem;
   font-weight: 600;
-  line-height: 1.18;
-  text-overflow: ellipsis;
+  line-height: 1.5;
   background: var(--deep-crimson);
   border: 1px solid rgba(106, 15, 26, 0.2);
   border-radius: 2px;
@@ -981,22 +873,14 @@ body.book-open .invitation-app::before {
   margin: auto 0 0;
   color: var(--ink-muted);
   font-family: var(--font-script);
-  font-size: clamp(0.55rem, 2.2vw, 0.7rem);
-  line-height: 1.2;
+  font-size: 1.05rem;
+  line-height: 1.45;
 }
 
 /* Logistics */
-.page-logistics_rsvp .page-inner-surface {
-  padding: clamp(24px, 6%, 40px) clamp(21px, 6%, 40px);
-}
-
-.page-logistics_rsvp .section-title {
-  font-size: clamp(1.25rem, 5.4vw, 1.9rem);
-}
-
 .venue-block {
-  margin-top: 12px;
-  padding: 11px 10px;
+  margin-top: 28px;
+  padding: 20px 10px;
   text-align: center;
   background: rgba(255, 253, 247, 0.44);
   border-top: 1px solid var(--antique-gold);
@@ -1007,16 +891,16 @@ body.book-open .invitation-app::before {
   margin: 0;
   color: var(--deep-crimson);
   font-family: var(--font-heading);
-  font-size: clamp(1rem, 4.25vw, 1.3rem);
+  font-size: 1.3rem;
   font-weight: 400;
-  line-height: 1.05;
+  line-height: 1.25;
 }
 
 .venue-hall {
   margin: 3px 0 6px;
   color: var(--antique-gold);
   font-family: var(--font-script);
-  font-size: clamp(0.72rem, 3vw, 0.9rem);
+  font-size: 1.05rem;
   font-weight: 600;
 }
 
@@ -1024,20 +908,20 @@ body.book-open .invitation-app::before {
 .reception-details {
   margin: 0;
   color: var(--ink-muted);
-  font-size: clamp(0.51rem, 2.25vw, 0.67rem);
-  line-height: 1.42;
+  font-size: 0.8rem;
+  line-height: 1.6;
 }
 
 .reception-details {
-  margin: 9px auto 0;
+  margin: 20px auto 0;
   text-align: center;
 }
 
 .action-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 7px;
-  margin-top: 9px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  margin-top: 24px;
 }
 
 .action-row.single-action {
@@ -1046,12 +930,12 @@ body.book-open .invitation-app::before {
 
 .action-button {
   display: flex;
-  min-height: 36px;
+  min-height: 44px;
   align-items: center;
   justify-content: center;
-  padding: 7px 8px;
+  padding: 12px;
   color: #fff9ed;
-  font-size: clamp(0.48rem, 2.05vw, 0.64rem);
+  font-size: 0.75rem;
   font-weight: 600;
   line-height: 1.2;
   text-align: center;
@@ -1080,16 +964,17 @@ button.action-button {
 
 .contacts-list {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 7px;
-  margin-top: 10px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  margin-top: 24px;
 }
 
 .contact-link {
   display: grid;
   min-width: 0;
-  gap: 1px;
-  padding: 7px 5px;
+  min-height: 44px;
+  gap: 5px;
+  padding: 12px;
   color: var(--ink-dark);
   text-align: center;
   text-decoration: none;
@@ -1098,86 +983,34 @@ button.action-button {
 }
 
 .contact-link strong {
-  overflow: hidden;
-  font-size: clamp(0.51rem, 2.2vw, 0.66rem);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 0.85rem;
 }
 
 .contact-link span {
   color: var(--ink-muted);
-  font-size: clamp(0.42rem, 1.8vw, 0.53rem);
+  font-size: 0.75rem;
+  line-height: 1.6;
 }
 
 .closing-blessing {
-  margin: auto 0 0;
-  padding-top: 8px;
+  margin: 28px 0 0;
   color: var(--deep-crimson);
   font-family: var(--font-script);
-  font-size: clamp(0.76rem, 3.25vw, 1rem);
+  font-size: 1.15rem;
   font-weight: 600;
   text-align: center;
-}
-
-/* CDN resilience: usable page stack when StPageFlip is unavailable */
-.book-container.is-static-fallback {
-  position: relative;
-  overflow: hidden;
-  background: var(--parchment-bg);
-  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.38);
-}
-
-.book-container.is-static-fallback .page-container {
-  position: absolute;
-  inset: 0;
-  display: none;
-}
-
-.book-container.is-static-fallback .page-container.is-active {
-  display: block;
-}
-
-@media (max-height: 680px) {
-  .page-inner-surface { padding-top: 24px; padding-bottom: 24px; }
-  .ornament-divider { margin-top: 9px; margin-bottom: 9px; }
-  .blessing-quote { margin-top: 14px; margin-bottom: 14px; }
-  .cultural-message { margin-top: 13px; line-height: 1.35; }
 }
 
 @media (min-width: 720px) {
   .envelope { width: 390px; }
   .seal-prompt { top: calc(50% + 126px); }
 
-  .book-stage {
-    grid-template-rows: minmax(0, 1fr) auto;
-    gap: 10px;
-    padding:
-      max(12px, env(safe-area-inset-top))
-      3vw
-      max(12px, env(safe-area-inset-bottom));
-  }
+  .page-inner-surface { padding: 64px 48px; }
+  .couple-name { font-size: 3.2rem; }
 
-  .book-shell {
-    width: min(94vw, 1100px);
-    height: min(80dvh, 760px);
-  }
-
-  .book-shell::after { display: block; }
-
-  .book-controls { display: grid; }
-
-  .events-grid { gap: 12px; }
-}
-
-@media (min-width: 900px) and (orientation: landscape) {
-  .book-stage { padding-inline: 2vw; }
-
-  .book-shell {
-    width: min(88vw, 1100px);
-    height: min(82dvh, 800px);
-  }
-
-  .page-inner-surface { padding: 42px 38px; }
+  .events-grid,
+  .action-row,
+  .contacts-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 719px), (pointer: coarse) {
@@ -1199,15 +1032,6 @@ button.action-button {
   .flap-bottom,
   .wax-seal.has-image {
     filter: none;
-  }
-
-  .page-container {
-    background-image: var(--paper-image),
-      radial-gradient(circle at 38% 23%, #fffdf7 0, #faf6ee 58%, #eee4d3 112%);
-  }
-
-  .page-container::after {
-    mix-blend-mode: normal;
   }
 }
 
