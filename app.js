@@ -30,6 +30,7 @@ const elements = {
 
 const TEMPLATE_RENDERERS = {
   COVER: renderCoverTemplate,
+  COUNTDOWN: renderCountdownTemplate,
   FAMILY_BLESSINGS: renderFamilyBlessingsTemplate,
   ITINERARY: renderItineraryTemplate,
   LOGISTICS_RSVP: renderLogisticsTemplate
@@ -52,6 +53,7 @@ async function boot() {
     elements.bookStage.style.visibility = "hidden";
     elements.bookStage.hidden = false;
     bindInterfaceEvents();
+    initializeCountdowns();
 
     elements.loading.hidden = true;
     elements.envelopeScene.hidden = false;
@@ -72,6 +74,15 @@ function validateConfig(config) {
   if (!Array.isArray(config.pages) || config.pages.length === 0) {
     throw new TypeError("INVITATION_CONFIG.pages must contain at least one page.");
   }
+  if (typeof config.weddingDate !== "string" ||
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2})$/.test(config.weddingDate) ||
+    !Number.isFinite(Date.parse(config.weddingDate))) {
+    throw new TypeError("weddingDate must be an ISO date and time with seconds and an explicit timezone.");
+  }
+  const localDate = new Date(config.weddingDate.replace(/(?:Z|[+-]\d{2}:\d{2})$/, "Z"));
+  if (localDate.toISOString().slice(0, 19) !== config.weddingDate.slice(0, 19)) {
+    throw new TypeError("weddingDate must be a valid calendar date.");
+  }
 
   const pageNumbers = new Set();
   config.pages.forEach((page, index) => {
@@ -80,6 +91,10 @@ function validateConfig(config) {
     }
     if (!page.content || typeof page.content !== "object") {
       throw new TypeError(`Page ${page.pageNumber ?? index + 1} has no content object.`);
+    }
+    if (page.template === "ITINERARY" && page.content.events.some(event =>
+      !Number.isInteger(event.dayOffset ?? 0))) {
+      throw new TypeError("Event dayOffset must be an integer number of days from the wedding date.");
     }
     if (pageNumbers.has(page.pageNumber)) {
       throw new TypeError(`Duplicate pageNumber: ${page.pageNumber}`);
@@ -212,25 +227,159 @@ function renderDivider() {
   return `<div class="ornament-divider" aria-hidden="true">${escapeHtml(INVITATION_CONFIG.theme.motifs.dividerGlyph)}</div>`;
 }
 
+function getWeddingTimezoneOffset() {
+  return INVITATION_CONFIG.weddingDate.match(/(?:Z|[+-]\d{2}:\d{2})$/)[0];
+}
+
+function getWeddingLocalDate(dayOffset = 0) {
+  const date = new Date(INVITATION_CONFIG.weddingDate.replace(/(?:Z|[+-]\d{2}:\d{2})$/, "Z"));
+  date.setUTCDate(date.getUTCDate() + dayOffset);
+  return date;
+}
+
+function formatWeddingDate(dayOffset = 0) {
+  return new Intl.DateTimeFormat("en-IN", {
+    weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC"
+  }).format(getWeddingLocalDate(dayOffset));
+}
+
+function formatWeddingTime() {
+  return new Intl.DateTimeFormat("en-IN", {
+    hour: "numeric", minute: "2-digit", hour12: true, timeZone: "UTC"
+  }).format(getWeddingLocalDate());
+}
+
+function getEventTimeText(event) {
+  const time = event.useWeddingTime ? formatWeddingTime() : event.time;
+  return event.timeNote ? `${time} (${event.timeNote})` : time;
+}
+
 function renderCoverTemplate(content) {
   const { groom, bride } = content.couple;
   return `
-    <p class="cover-invocation">${escapeHtml(content.spiritualInvocation)}</p>
-    <p class="cover-shloka">${escapeHtml(content.shloka)}</p>
-    ${renderDivider()}
-    <p class="cover-headline">${escapeHtml(content.headline)}</p>
-    <h1 class="couple-names">
-      <span class="couple-name">${escapeHtml(groom.name)}</span>
-      <span class="couple-ampersand">&amp;</span>
-      <span class="couple-name">${escapeHtml(bride.name)}</span>
-    </h1>
-    <div class="couple-details">
-      <p>${escapeHtml(groom.parents)}<br>${escapeHtml(groom.residence)}</p>
-      <p>${escapeHtml(bride.parents)}<br>${escapeHtml(bride.residence)}</p>
+    <div class="ganesha-emblem">
+      <img src="${escapeAttribute(INVITATION_CONFIG.assets.ganeshaEmblem)}" alt="${escapeAttribute(content.emblemAlt)}" width="132" height="132">
     </div>
-    <p class="wedding-date">${escapeHtml(content.weddingDateFormal)}</p>
+    <p class="cover-invocation">${escapeHtml(content.spiritualInvocation)}</p>
+    <p class="cover-shloka">${escapeHtml(content.shloka_l1)}</p>
+    <p class="cover-shloka">${escapeHtml(content.shloka_l2)}</p>
+    <p class="cover-headline">${escapeHtml(content.headline)}</p>
+    <h1 class="cover-title">${escapeHtml(bride.name)} &amp; ${escapeHtml(groom.name)}</h1>
+    <div class="couple-panels">
+      <div class="partner-block partner-bride">
+        <p class="partner-role">${escapeHtml(bride.label)}</p>
+        <h2 class="partner-name">${escapeHtml(bride.name)}</h2>
+        <p class="partner-details">${escapeHtml(bride.parents)}<br>${escapeHtml(bride.residence)}</p>
+      </div>
+      <div class="partner-block partner-groom">
+        <p class="partner-role">${escapeHtml(groom.label)}</p>
+        <h2 class="partner-name">${escapeHtml(groom.name)}</h2>
+        <p class="partner-details">${escapeHtml(groom.parents)}<br>${escapeHtml(groom.residence)}</p>
+      </div>
+    </div>
+    <p class="wedding-date">${escapeHtml(formatWeddingDate())}</p>
     <p class="cover-bottom-note">${escapeHtml(content.bottomNote)}</p>
   `;
+}
+
+function getCountdownValues(targetTime, now = Date.now()) {
+  const totalSeconds = Math.max(0, Math.floor((targetTime - now) / 1000));
+  return {
+    days: String(Math.floor(totalSeconds / 86400)).padStart(2, "0"),
+    hours: String(Math.floor(totalSeconds / 3600) % 24).padStart(2, "0"),
+    minutes: String(Math.floor(totalSeconds / 60) % 60).padStart(2, "0"),
+    seconds: String(totalSeconds % 60).padStart(2, "0")
+  };
+}
+
+function renderCountdownTemplate(content) {
+  const targetDate = INVITATION_CONFIG.weddingDate;
+  const timezone = getWeddingTimezoneOffset();
+  const dateLabel = `${formatWeddingDate()} at ${formatWeddingTime()} (UTC${timezone === "Z" ? "" : timezone})`;
+  const values = getCountdownValues(Date.parse(targetDate));
+  const units = Object.entries(values).map(([unit, value]) => `
+    <div class="countdown-unit">
+      <span class="countdown-value" data-countdown-unit="${unit}" aria-hidden="true">${renderCountdownDigits(value)}</span>
+      <span class="countdown-label">${escapeHtml(content.labels[unit])}</span>
+    </div>
+  `).join("");
+  return `
+    <p class="section-badge">${escapeHtml(content.headerBadge)}</p>
+    <h2 class="section-title">${escapeHtml(content.title)}</h2>
+    ${renderDivider()}
+    <div class="countdown-clock" role="timer" aria-live="off" data-target-date="${escapeAttribute(targetDate)}">
+      ${units}
+      <span class="countdown-summary"></span>
+    </div>
+    <p class="countdown-date"><time datetime="${escapeAttribute(targetDate)}">${escapeHtml(dateLabel)}</time></p>
+    <p class="countdown-message" hidden>${escapeHtml(content.completeMessage)}</p>
+  `;
+}
+
+function renderCountdownDigits(value) {
+  return [...value].map(digit => `
+    <span class="countdown-digit" data-digit="${digit}"><span class="countdown-reel"><span>${digit}</span><span></span></span></span>
+  `).join("");
+}
+
+function initializeCountdowns() {
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  elements.bookContainer.querySelectorAll(".countdown-clock").forEach(clock => {
+    const targetTime = Date.parse(clock.dataset.targetDate);
+    const section = clock.closest(".page-countdown");
+    const message = section.querySelector(".countdown-message");
+    const update = () => {
+      const values = getCountdownValues(targetTime);
+      Object.entries(values).forEach(([unit, value]) => {
+        const counter = clock.querySelector(`[data-countdown-unit="${unit}"]`);
+        const digits = [...counter.children];
+        if (digits.length !== value.length) {
+          counter.innerHTML = renderCountdownDigits(value);
+          return;
+        }
+        [...value].forEach((nextDigit, index) => {
+          const digit = digits[index];
+          if (digit.dataset.digit === nextDigit) return;
+          const reel = digit.firstElementChild;
+          reel.getAnimations().forEach(animation => animation.cancel());
+          const previous = document.createElement("span");
+          const next = document.createElement("span");
+          previous.textContent = digit.dataset.digit;
+          next.textContent = nextDigit;
+          digit.dataset.digit = nextDigit;
+          reel.replaceChildren(previous, next);
+          const settle = () => {
+            previous.textContent = nextDigit;
+            next.textContent = "";
+          };
+          if (reducedMotion.matches || document.hidden || !document.body.classList.contains("invitation-ready")) {
+            settle();
+            return;
+          }
+          const animation = reel.animate([
+            { transform: "translateY(0)" },
+            { transform: "translateY(-50%)" }
+          ], { duration: 450, easing: "cubic-bezier(0.4, 0, 0.2, 1)" });
+          animation.onfinish = () => {
+            settle();
+            animation.cancel();
+          };
+        });
+      });
+      clock.querySelector(".countdown-summary").textContent = Object.entries(values)
+        .map(([unit, value]) => `${value} ${clock.querySelector(`[data-countdown-unit="${unit}"]`).nextElementSibling.textContent}`)
+        .join(", ");
+      message.hidden = Date.now() < targetTime;
+      if (!message.hidden) clock.querySelector(".countdown-summary").textContent = message.textContent;
+      clearTimeout(timer);
+      if (message.hidden) timer = setTimeout(update, 1000 - Date.now() % 1000);
+    };
+    let timer;
+    update();
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) update();
+    });
+  });
 }
 
 function renderFamilyBlessingsTemplate(content) {
@@ -254,9 +403,9 @@ function renderItineraryTemplate(content) {
   const eventCards = content.events.map((event) => `
     <article class="event-card">
       <h3>${escapeHtml(event.name)}</h3>
-      <p class="event-date">${escapeHtml(event.date)}</p>
+      <p class="event-date">${escapeHtml(formatWeddingDate(event.dayOffset))}</p>
       <div class="event-badges">
-        <span class="time-badge">${escapeHtml(event.time)}</span>
+        <span class="time-badge">${escapeHtml(getEventTimeText(event))}</span>
         <span class="attire-badge">${escapeHtml(event.attire)}</span>
       </div>
       <p class="event-description">${escapeHtml(event.description)}</p>
@@ -511,7 +660,7 @@ function downloadCalendarFile() {
   const calendarName = couple ? `${couple.groom.name} & ${couple.bride.name} Wedding` : "Wedding Celebrations";
   const generatedAt = formatCalendarDate(new Date());
   const calendarEvents = events.map((event, index) => {
-    const start = parseEventDateTime(event.date, event.time);
+    const start = parseEventDateTime(event);
     if (!start) return "";
     const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
     return [
@@ -546,21 +695,16 @@ function downloadCalendarFile() {
   setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
 }
 
-function parseEventDateTime(dateText, timeText) {
-  const dateMatch = dateText.match(/(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/);
-  const timeMatch = timeText.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-  if (!dateMatch || !timeMatch) return null;
-
-  const months = [
-    "january", "february", "march", "april", "may", "june",
-    "july", "august", "september", "october", "november", "december"
-  ];
-  const month = months.indexOf(dateMatch[2].toLowerCase());
-  if (month < 0) return null;
-
-  let hour = Number(timeMatch[1]) % 12;
-  if (timeMatch[3].toUpperCase() === "PM") hour += 12;
-  return new Date(Number(dateMatch[3]), month, Number(dateMatch[1]), hour, Number(timeMatch[2]));
+function parseEventDateTime(event) {
+  const date = getWeddingLocalDate(event.dayOffset);
+  if (!event.useWeddingTime) {
+    const timeMatch = event.time?.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    if (!timeMatch || Number(timeMatch[1]) < 1 || Number(timeMatch[1]) > 12 || Number(timeMatch[2]) > 59) return null;
+    let hour = Number(timeMatch[1]) % 12;
+    if (timeMatch[3].toUpperCase() === "PM") hour += 12;
+    date.setUTCHours(hour, Number(timeMatch[2]), 0, 0);
+  }
+  return new Date(`${date.toISOString().slice(0, 19)}${getWeddingTimezoneOffset()}`);
 }
 
 function formatCalendarDate(date) {
