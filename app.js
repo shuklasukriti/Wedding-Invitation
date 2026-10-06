@@ -1,8 +1,6 @@
 "use strict";
 
 let INVITATION_CONFIG = null;
-let pageFlip = null;
-let fallbackPageIndex = 0;
 let unsealing = false;
 
 const elements = {
@@ -25,10 +23,6 @@ const elements = {
   bookStage: document.getElementById("book-stage"),
   bookShell: document.getElementById("book-shell"),
   bookContainer: document.getElementById("book-container"),
-  bookControls: document.getElementById("book-controls"),
-  previousPage: document.getElementById("previous-page"),
-  nextPage: document.getElementById("next-page"),
-  pageStatus: document.getElementById("page-status"),
   errorState: document.getElementById("error-state"),
   errorTitle: document.getElementById("error-title"),
   errorBody: document.getElementById("error-body")
@@ -36,6 +30,7 @@ const elements = {
 
 const TEMPLATE_RENDERERS = {
   COVER: renderCoverTemplate,
+  COUNTDOWN: renderCountdownTemplate,
   FAMILY_BLESSINGS: renderFamilyBlessingsTemplate,
   ITINERARY: renderItineraryTemplate,
   LOGISTICS_RSVP: renderLogisticsTemplate
@@ -54,11 +49,11 @@ async function boot() {
     validateConfig(INVITATION_CONFIG);
     await applyTheme(INVITATION_CONFIG);
     populateInterface(INVITATION_CONFIG);
-    renderBookPages(INVITATION_CONFIG.pages);
+    renderInvitationSections(INVITATION_CONFIG.pages);
     elements.bookStage.style.visibility = "hidden";
     elements.bookStage.hidden = false;
-    initializeFlipbook();
     bindInterfaceEvents();
+    initializeCountdowns();
 
     elements.loading.hidden = true;
     elements.envelopeScene.hidden = false;
@@ -79,6 +74,15 @@ function validateConfig(config) {
   if (!Array.isArray(config.pages) || config.pages.length === 0) {
     throw new TypeError("INVITATION_CONFIG.pages must contain at least one page.");
   }
+  if (typeof config.weddingDate !== "string" ||
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2})$/.test(config.weddingDate) ||
+    !Number.isFinite(Date.parse(config.weddingDate))) {
+    throw new TypeError("weddingDate must be an ISO date and time with seconds and an explicit timezone.");
+  }
+  const localDate = new Date(config.weddingDate.replace(/(?:Z|[+-]\d{2}:\d{2})$/, "Z"));
+  if (localDate.toISOString().slice(0, 19) !== config.weddingDate.slice(0, 19)) {
+    throw new TypeError("weddingDate must be a valid calendar date.");
+  }
 
   const pageNumbers = new Set();
   config.pages.forEach((page, index) => {
@@ -87,6 +91,10 @@ function validateConfig(config) {
     }
     if (!page.content || typeof page.content !== "object") {
       throw new TypeError(`Page ${page.pageNumber ?? index + 1} has no content object.`);
+    }
+    if (page.template === "ITINERARY" && page.content.events.some(event =>
+      !Number.isInteger(event.dayOffset ?? 0))) {
+      throw new TypeError("Event dayOffset must be an integer number of days from the wedding date.");
     }
     if (pageNumbers.has(page.pageNumber)) {
       throw new TypeError(`Duplicate pageNumber: ${page.pageNumber}`);
@@ -161,11 +169,6 @@ function populateInterface(config) {
   elements.sealMonogram.textContent = envelope.sealMonogramText;
   elements.sealPrompt.textContent = envelope.sealPromptText;
   elements.seal.setAttribute("aria-label", ui.openSealAriaLabel);
-  elements.previousPage.setAttribute("aria-label", ui.previousPageLabel);
-  elements.previousPage.title = ui.previousPageLabel;
-  elements.nextPage.setAttribute("aria-label", ui.nextPageLabel);
-  elements.nextPage.title = ui.nextPageLabel;
-  elements.bookControls.setAttribute("aria-label", ui.bookControlsAriaLabel);
   elements.bookContainer.setAttribute("aria-label", ui.bookAriaLabel);
 
   elements.sealImage.addEventListener("load", () => {
@@ -181,31 +184,32 @@ function populateInterface(config) {
   elements.sealImage.src = assets.waxSealTexture;
 }
 
-function renderBookPages(pages) {
+function renderInvitationSections(pages) {
   const fragment = document.createDocumentFragment();
-  pages.forEach((page) => fragment.append(renderPageNode(page)));
+  pages.forEach((page, index) => fragment.append(renderSectionNode(page, index)));
   elements.bookContainer.replaceChildren(fragment);
 }
 
-function renderPageNode(pageData) {
+function renderSectionNode(pageData, index) {
   const renderer = TEMPLATE_RENDERERS[pageData.template];
   if (!renderer) {
     throw new TypeError(`No renderer exists for template ${pageData.template}.`);
   }
 
-  const page = document.createElement("div");
+  const page = document.createElement("section");
   page.className = `page-container page-${pageData.template.toLowerCase()}`;
-  page.dataset.density = "soft";
   page.dataset.pageNumber = String(pageData.pageNumber);
   page.innerHTML = `
     <div class="page-inner-surface">
       ${renderCornerFiligree()}
       <div class="template-content">
         ${renderer(pageData.content)}
-        <span class="page-number-mark" aria-hidden="true">${escapeHtml(pageData.pageNumber)}</span>
       </div>
     </div>
   `;
+  const heading = page.querySelector("h1, h2");
+  heading.id = `invitation-section-${index + 1}`;
+  page.setAttribute("aria-labelledby", heading.id);
   return page;
 }
 
@@ -223,25 +227,159 @@ function renderDivider() {
   return `<div class="ornament-divider" aria-hidden="true">${escapeHtml(INVITATION_CONFIG.theme.motifs.dividerGlyph)}</div>`;
 }
 
+function getWeddingTimezoneOffset() {
+  return INVITATION_CONFIG.weddingDate.match(/(?:Z|[+-]\d{2}:\d{2})$/)[0];
+}
+
+function getWeddingLocalDate(dayOffset = 0) {
+  const date = new Date(INVITATION_CONFIG.weddingDate.replace(/(?:Z|[+-]\d{2}:\d{2})$/, "Z"));
+  date.setUTCDate(date.getUTCDate() + dayOffset);
+  return date;
+}
+
+function formatWeddingDate(dayOffset = 0) {
+  return new Intl.DateTimeFormat("en-IN", {
+    weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC"
+  }).format(getWeddingLocalDate(dayOffset));
+}
+
+function formatWeddingTime() {
+  return new Intl.DateTimeFormat("en-IN", {
+    hour: "numeric", minute: "2-digit", hour12: true, timeZone: "UTC"
+  }).format(getWeddingLocalDate());
+}
+
+function getEventTimeText(event) {
+  const time = event.useWeddingTime ? formatWeddingTime() : event.time;
+  return event.timeNote ? `${time} (${event.timeNote})` : time;
+}
+
 function renderCoverTemplate(content) {
   const { groom, bride } = content.couple;
   return `
-    <p class="cover-invocation">${escapeHtml(content.spiritualInvocation)}</p>
-    <p class="cover-shloka">${escapeHtml(content.shloka)}</p>
-    ${renderDivider()}
-    <p class="cover-headline">${escapeHtml(content.headline)}</p>
-    <h1 class="couple-names">
-      <span class="couple-name">${escapeHtml(groom.name)}</span>
-      <span class="couple-ampersand">&amp;</span>
-      <span class="couple-name">${escapeHtml(bride.name)}</span>
-    </h1>
-    <div class="couple-details">
-      <p>${escapeHtml(groom.parents)}<br>${escapeHtml(groom.residence)}</p>
-      <p>${escapeHtml(bride.parents)}<br>${escapeHtml(bride.residence)}</p>
+    <div class="ganesha-emblem">
+      <img src="${escapeAttribute(INVITATION_CONFIG.assets.ganeshaEmblem)}" alt="${escapeAttribute(content.emblemAlt)}" width="132" height="132">
     </div>
-    <p class="wedding-date">${escapeHtml(content.weddingDateFormal)}</p>
+    <p class="cover-invocation">${escapeHtml(content.spiritualInvocation)}</p>
+    <p class="cover-shloka">${escapeHtml(content.shloka_l1)}</p>
+    <p class="cover-shloka">${escapeHtml(content.shloka_l2)}</p>
+    <p class="cover-headline">${escapeHtml(content.headline)}</p>
+    <h1 class="cover-title">${escapeHtml(bride.name)} &amp; ${escapeHtml(groom.name)}</h1>
+    <div class="couple-panels">
+      <div class="partner-block partner-bride">
+        <p class="partner-role">${escapeHtml(bride.label)}</p>
+        <h2 class="partner-name">${escapeHtml(bride.name)}</h2>
+        <p class="partner-details">${escapeHtml(bride.parents)}<br>${escapeHtml(bride.residence)}</p>
+      </div>
+      <div class="partner-block partner-groom">
+        <p class="partner-role">${escapeHtml(groom.label)}</p>
+        <h2 class="partner-name">${escapeHtml(groom.name)}</h2>
+        <p class="partner-details">${escapeHtml(groom.parents)}<br>${escapeHtml(groom.residence)}</p>
+      </div>
+    </div>
+    <p class="wedding-date">${escapeHtml(formatWeddingDate())}</p>
     <p class="cover-bottom-note">${escapeHtml(content.bottomNote)}</p>
   `;
+}
+
+function getCountdownValues(targetTime, now = Date.now()) {
+  const totalSeconds = Math.max(0, Math.floor((targetTime - now) / 1000));
+  return {
+    days: String(Math.floor(totalSeconds / 86400)).padStart(2, "0"),
+    hours: String(Math.floor(totalSeconds / 3600) % 24).padStart(2, "0"),
+    minutes: String(Math.floor(totalSeconds / 60) % 60).padStart(2, "0"),
+    seconds: String(totalSeconds % 60).padStart(2, "0")
+  };
+}
+
+function renderCountdownTemplate(content) {
+  const targetDate = INVITATION_CONFIG.weddingDate;
+  const timezone = getWeddingTimezoneOffset();
+  const dateLabel = `${formatWeddingDate()} at ${formatWeddingTime()} (UTC${timezone === "Z" ? "" : timezone})`;
+  const values = getCountdownValues(Date.parse(targetDate));
+  const units = Object.entries(values).map(([unit, value]) => `
+    <div class="countdown-unit">
+      <span class="countdown-value" data-countdown-unit="${unit}" aria-hidden="true">${renderCountdownDigits(value)}</span>
+      <span class="countdown-label">${escapeHtml(content.labels[unit])}</span>
+    </div>
+  `).join("");
+  return `
+    <p class="section-badge">${escapeHtml(content.headerBadge)}</p>
+    <h2 class="section-title">${escapeHtml(content.title)}</h2>
+    ${renderDivider()}
+    <div class="countdown-clock" role="timer" aria-live="off" data-target-date="${escapeAttribute(targetDate)}">
+      ${units}
+      <span class="countdown-summary"></span>
+    </div>
+    <p class="countdown-date"><time datetime="${escapeAttribute(targetDate)}">${escapeHtml(dateLabel)}</time></p>
+    <p class="countdown-message" hidden>${escapeHtml(content.completeMessage)}</p>
+  `;
+}
+
+function renderCountdownDigits(value) {
+  return [...value].map(digit => `
+    <span class="countdown-digit" data-digit="${digit}"><span class="countdown-reel"><span>${digit}</span><span></span></span></span>
+  `).join("");
+}
+
+function initializeCountdowns() {
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  elements.bookContainer.querySelectorAll(".countdown-clock").forEach(clock => {
+    const targetTime = Date.parse(clock.dataset.targetDate);
+    const section = clock.closest(".page-countdown");
+    const message = section.querySelector(".countdown-message");
+    const update = () => {
+      const values = getCountdownValues(targetTime);
+      Object.entries(values).forEach(([unit, value]) => {
+        const counter = clock.querySelector(`[data-countdown-unit="${unit}"]`);
+        const digits = [...counter.children];
+        if (digits.length !== value.length) {
+          counter.innerHTML = renderCountdownDigits(value);
+          return;
+        }
+        [...value].forEach((nextDigit, index) => {
+          const digit = digits[index];
+          if (digit.dataset.digit === nextDigit) return;
+          const reel = digit.firstElementChild;
+          reel.getAnimations().forEach(animation => animation.cancel());
+          const previous = document.createElement("span");
+          const next = document.createElement("span");
+          previous.textContent = digit.dataset.digit;
+          next.textContent = nextDigit;
+          digit.dataset.digit = nextDigit;
+          reel.replaceChildren(previous, next);
+          const settle = () => {
+            previous.textContent = nextDigit;
+            next.textContent = "";
+          };
+          if (reducedMotion.matches || document.hidden || !document.body.classList.contains("invitation-ready")) {
+            settle();
+            return;
+          }
+          const animation = reel.animate([
+            { transform: "translateY(0)" },
+            { transform: "translateY(-50%)" }
+          ], { duration: 450, easing: "cubic-bezier(0.4, 0, 0.2, 1)" });
+          animation.onfinish = () => {
+            settle();
+            animation.cancel();
+          };
+        });
+      });
+      clock.querySelector(".countdown-summary").textContent = Object.entries(values)
+        .map(([unit, value]) => `${value} ${clock.querySelector(`[data-countdown-unit="${unit}"]`).nextElementSibling.textContent}`)
+        .join(", ");
+      message.hidden = Date.now() < targetTime;
+      if (!message.hidden) clock.querySelector(".countdown-summary").textContent = message.textContent;
+      clearTimeout(timer);
+      if (message.hidden) timer = setTimeout(update, 1000 - Date.now() % 1000);
+    };
+    let timer;
+    update();
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) update();
+    });
+  });
 }
 
 function renderFamilyBlessingsTemplate(content) {
@@ -265,9 +403,9 @@ function renderItineraryTemplate(content) {
   const eventCards = content.events.map((event) => `
     <article class="event-card">
       <h3>${escapeHtml(event.name)}</h3>
-      <p class="event-date">${escapeHtml(event.date)}</p>
+      <p class="event-date">${escapeHtml(formatWeddingDate(event.dayOffset))}</p>
       <div class="event-badges">
-        <span class="time-badge">${escapeHtml(event.time)}</span>
+        <span class="time-badge">${escapeHtml(getEventTimeText(event))}</span>
         <span class="attire-badge">${escapeHtml(event.attire)}</span>
       </div>
       <p class="event-description">${escapeHtml(event.description)}</p>
@@ -326,24 +464,7 @@ function createWhatsappUrl(actions) {
 
 function bindInterfaceEvents() {
   elements.seal.addEventListener("click", runUnsealingSequence, { once: true });
-  elements.previousPage.addEventListener("click", () => turnPage(-1));
-  elements.nextPage.addEventListener("click", () => turnPage(1));
   elements.bookContainer.addEventListener("click", handleBookAction);
-  bindTapNavigation();
-
-  let resizeFrame = 0;
-  window.addEventListener("resize", () => {
-    cancelAnimationFrame(resizeFrame);
-    resizeFrame = requestAnimationFrame(updateViewportMetrics);
-  }, { passive: true });
-  updateViewportMetrics();
-}
-
-function updateViewportMetrics() {
-  document.documentElement.style.setProperty("--viewport-height", `${window.innerHeight}px`);
-  if (pageFlip && typeof pageFlip.update === "function") {
-    pageFlip.update();
-  }
 }
 
 function runUnsealingSequence() {
@@ -352,17 +473,22 @@ function runUnsealingSequence() {
   elements.seal.disabled = true;
   elements.envelopeScene.style.pointerEvents = "none";
 
-  if (!window.gsap) {
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (!window.gsap || reducedMotion) {
     completeUnsealingWithoutAnimation();
     return;
   }
 
-  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const durationScale = reducedMotion ? 0.05 : 1;
-  const envelopeDrop = Math.min(window.innerHeight * 0.16, 140);
+  const durationScale = 1;
   const mobile = window.matchMedia("(max-width: 719px)").matches;
+  const cardBounds = elements.cardPreview.getBoundingClientRect();
+  const envelopeBounds = elements.envelope.getBoundingClientRect();
+  const extractedCardTop = Math.max(0, (window.innerHeight - cardBounds.height) / 2);
+  const flapDepth = elements.topFlap.offsetHeight *
+    Number.parseFloat(window.getComputedStyle(elements.topFlap).getPropertyValue("--flap-tip")) / 100;
+  const envelopeDrop = Math.max(0, extractedCardTop + cardBounds.height + flapDepth + 32 - envelopeBounds.top);
   const lightEffects = mobile || window.matchMedia("(pointer: coarse)").matches;
-  const cardLift = mobile ? "-112%" : "-165%";
+  const cardLift = extractedCardTop - cardBounds.top - envelopeDrop;
   const timeline = window.gsap.timeline({ defaults: { ease: "power2.inOut" } });
   const revealTargets = elements.bookContainer.querySelectorAll(".page-inner-surface > *");
 
@@ -418,64 +544,26 @@ function runUnsealingSequence() {
       ...(!lightEffects && { boxShadow: "0 18px 24px -12px rgba(23, 0, 2, 0.46), inset 0 0 25px rgba(113, 71, 27, 0.1)" }),
       ease: "power2.inOut"
     }, 1.46 * durationScale)
-    .call(lightEffects ? prepareMobileBookStage : promoteCardPreview, [], 2.63 * durationScale)
-    .to(elements.envelope, {
-      ...(!lightEffects && { scale: 0.9 }),
-      opacity: 0,
-      duration: (lightEffects ? 0 : 0.58) * durationScale,
-      ease: "power2.in"
-    }, (lightEffects ? 3.25 : 2.64) * durationScale)
-    .to(elements.tableVignette, {
-      ...(!lightEffects && { scale: 0.92 }),
-      opacity: 0,
-      duration: (lightEffects ? 0 : 0.58) * durationScale
-    }, (lightEffects ? 3.25 : 2.64) * durationScale)
-    .to(lightEffects ? elements.bookShell : elements.cardPreview, {
-      ...(lightEffects
-        ? { x: 0, y: 0, scaleX: 1, scaleY: 1 }
-        : { top: 0, left: 0, width: "100vw", height: "100dvh", borderRadius: 0 }),
+    .call(promoteCardPreview, [], 2.63 * durationScale)
+    .to(elements.cardPreview, {
+      top: 0,
+      left: 0,
+      width: "100vw",
+      height: "100dvh",
+      borderRadius: 0,
       duration: 0.95 * durationScale,
       ease: "power3.inOut"
     }, 2.66 * durationScale)
-    .call(prepareBookStage, [], (lightEffects ? 2.63 : 3.61) * durationScale)
-    .to(elements.bookStage, {
-      opacity: 1,
-      duration: (lightEffects ? 0.55 : 0) * durationScale
-    }, (lightEffects ? 2.63 : 3.61) * durationScale)
-    .to(elements.bookShell, {
-      scale: 1,
-      duration: (lightEffects ? 0 : 0.48) * durationScale,
-      ease: "power2.out"
-    }, 3.61 * durationScale)
+    .call(prepareBookStage, [], 3.64 * durationScale)
+    .set(elements.bookStage, { opacity: 1 }, 3.64 * durationScale)
+    .set(elements.bookShell, { scale: 1 }, 3.64 * durationScale)
+    .set(revealTargets, { opacity: 1 }, 3.64 * durationScale)
     .to(elements.cardPreview, {
       opacity: 0,
-      duration: (lightEffects ? 0.55 : 0.42) * durationScale,
+      duration: 0.42 * durationScale,
       ease: "power1.inOut"
-    }, (lightEffects ? 2.63 : 3.74) * durationScale)
-    .to(revealTargets, {
-      opacity: 1,
-      duration: (lightEffects ? 0 : 0.56) * durationScale,
-      stagger: (lightEffects ? 0 : 0.025) * durationScale,
-      ease: "power1.out"
-    }, (lightEffects ? 3.61 : 4.08) * durationScale)
+    }, 3.74 * durationScale)
     .call(finishUnsealing);
-}
-
-function prepareMobileBookStage() {
-  const cardBounds = elements.cardPreview.getBoundingClientRect();
-  window.gsap.set(elements.bookShell, {
-    transformOrigin: "0 0",
-    x: 0,
-    y: 0,
-    scale: 1
-  });
-  const bookBounds = elements.bookShell.getBoundingClientRect();
-  window.gsap.set(elements.bookShell, {
-    x: cardBounds.left - bookBounds.left,
-    y: cardBounds.top - bookBounds.top,
-    scaleX: cardBounds.width / bookBounds.width,
-    scaleY: cardBounds.height / bookBounds.height
-  });
 }
 
 function promoteCardPreview() {
@@ -484,6 +572,7 @@ function promoteCardPreview() {
   elements.cardPreview.classList.add("is-extracting");
   window.gsap.set(elements.cardPreview, { clearProps: "transform" });
   window.gsap.set(elements.cardPreview, {
+    zIndex: 50,
     top: bounds.top,
     left: bounds.left,
     width: bounds.width,
@@ -500,15 +589,18 @@ function finishUnsealing() {
   elements.envelopeScene.hidden = true;
   elements.envelopeScene.removeAttribute("style");
   elements.bookStage.removeAttribute("aria-hidden");
+  elements.bookStage.inert = false;
   elements.cardPreview.remove();
+  document.body.classList.add("invitation-ready");
+  elements.bookContainer.focus({ preventScroll: true });
 }
 
 function prepareBookStage() {
   document.body.classList.add("book-open");
+  elements.envelopeScene.hidden = true;
   elements.bookStage.hidden = false;
   elements.bookStage.style.visibility = "";
   elements.bookStage.setAttribute("aria-hidden", "true");
-  initializeFlipbook();
 }
 
 function completeUnsealingWithoutAnimation() {
@@ -518,108 +610,7 @@ function completeUnsealingWithoutAnimation() {
   elements.bookStage.style.visibility = "";
   elements.bookStage.style.opacity = "1";
   elements.bookShell.style.transform = "scale(1) translateY(0)";
-  initializeFlipbook();
-}
-
-function initializeFlipbook() {
-  if (pageFlip || elements.bookContainer.classList.contains("is-static-fallback")) return;
-
-  if (!window.St?.PageFlip) {
-    initializeStaticFallback();
-    return;
-  }
-
-  const dimensions = calculatePageDimensions();
-  pageFlip = new window.St.PageFlip(elements.bookContainer, {
-    width: dimensions.width,
-    height: dimensions.height,
-    size: "stretch",
-    minWidth: 280,
-    maxWidth: 550,
-    minHeight: 420,
-    maxHeight: 900,
-    maxShadowOpacity: 0.38,
-    showCover: false,
-    mobileScrollSupport: false,
-    usePortrait: true,
-    drawShadow: !window.matchMedia("(max-width: 719px), (pointer: coarse)").matches,
-    flippingTime: 980,
-    autoSize: true,
-    clickEventForward: true,
-    disableFlipByClick: true,
-    useMouseEvents: false,
-    showPageCorners: true,
-    swipeDistance: 22
-  });
-
-  pageFlip.loadFromHTML(elements.bookContainer.querySelectorAll(".page-container"));
-  pageFlip.on("flip", () => updatePageStatus());
-  pageFlip.on("changeOrientation", () => updatePageStatus());
-  updatePageStatus();
-}
-
-function calculatePageDimensions() {
-  const portrait = window.innerWidth < 720 || window.innerHeight > window.innerWidth;
-  if (portrait) {
-    return {
-      width: Math.round(clamp(window.innerWidth, 280, 550)),
-      height: Math.round(clamp(window.innerHeight, 420, 900))
-    };
-  }
-  const widthBudget = portrait ? window.innerWidth * 0.92 : window.innerWidth * 0.44;
-  const heightBudget = window.innerHeight * 0.76;
-  const width = clamp(Math.min(widthBudget, heightBudget * 0.68), 280, 550);
-  const height = clamp(Math.min(heightBudget, width / 0.68), 420, 800);
-  return { width: Math.round(width), height: Math.round(height) };
-}
-
-function initializeStaticFallback() {
-  elements.bookContainer.classList.add("is-static-fallback");
-  fallbackPageIndex = 0;
-  showStaticPage(fallbackPageIndex);
-}
-
-function showStaticPage(index) {
-  const pages = [...elements.bookContainer.querySelectorAll(".page-container")];
-  fallbackPageIndex = clamp(index, 0, pages.length - 1);
-  pages.forEach((page, pageIndex) => page.classList.toggle("is-active", pageIndex === fallbackPageIndex));
-  updatePageStatus();
-}
-
-function turnPage(direction) {
-  if (pageFlip) {
-    const settings = pageFlip.getSettings();
-    const clickGuard = settings.disableFlipByClick;
-    settings.disableFlipByClick = false;
-    if (direction > 0) pageFlip.flipNext("top");
-    else pageFlip.flipPrev("top");
-    settings.disableFlipByClick = clickGuard;
-    return;
-  }
-  showStaticPage(fallbackPageIndex + direction);
-}
-
-function updatePageStatus() {
-  const total = INVITATION_CONFIG.pages.length;
-  const currentIndex = pageFlip ? pageFlip.getCurrentPageIndex() : fallbackPageIndex;
-  const current = clamp(currentIndex + 1, 1, total);
-  elements.pageStatus.textContent = INVITATION_CONFIG.ui.pageStatusTemplate
-    .replace("{current}", String(current))
-    .replace("{total}", String(total));
-  elements.previousPage.disabled = current <= 1;
-  elements.nextPage.disabled = current >= total;
-}
-
-function bindTapNavigation() {
-  elements.bookContainer.addEventListener("click", (event) => {
-    if (isInteractiveTarget(event.target)) return;
-    const bounds = elements.bookContainer.getBoundingClientRect();
-    turnPage(event.clientX < bounds.left + bounds.width / 2 ? -1 : 1);
-  });
-}
-
-function isInteractiveTarget(target) {
-  return target instanceof Element && Boolean(target.closest("a, button, input, select, textarea"));
+  finishUnsealing();
 }
 
 function handleBookAction(event) {
@@ -638,7 +629,7 @@ function downloadCalendarFile() {
   const calendarName = couple ? `${couple.groom.name} & ${couple.bride.name} Wedding` : "Wedding Celebrations";
   const generatedAt = formatCalendarDate(new Date());
   const calendarEvents = events.map((event, index) => {
-    const start = parseEventDateTime(event.date, event.time);
+    const start = parseEventDateTime(event);
     if (!start) return "";
     const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
     return [
@@ -673,21 +664,16 @@ function downloadCalendarFile() {
   setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
 }
 
-function parseEventDateTime(dateText, timeText) {
-  const dateMatch = dateText.match(/(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/);
-  const timeMatch = timeText.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-  if (!dateMatch || !timeMatch) return null;
-
-  const months = [
-    "january", "february", "march", "april", "may", "june",
-    "july", "august", "september", "october", "november", "december"
-  ];
-  const month = months.indexOf(dateMatch[2].toLowerCase());
-  if (month < 0) return null;
-
-  let hour = Number(timeMatch[1]) % 12;
-  if (timeMatch[3].toUpperCase() === "PM") hour += 12;
-  return new Date(Number(dateMatch[3]), month, Number(dateMatch[1]), hour, Number(timeMatch[2]));
+function parseEventDateTime(event) {
+  const date = getWeddingLocalDate(event.dayOffset);
+  if (!event.useWeddingTime) {
+    const timeMatch = event.time?.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    if (!timeMatch || Number(timeMatch[1]) < 1 || Number(timeMatch[1]) > 12 || Number(timeMatch[2]) > 59) return null;
+    let hour = Number(timeMatch[1]) % 12;
+    if (timeMatch[3].toUpperCase() === "PM") hour += 12;
+    date.setUTCHours(hour, Number(timeMatch[2]), 0, 0);
+  }
+  return new Date(`${date.toISOString().slice(0, 19)}${getWeddingTimezoneOffset()}`);
 }
 
 function formatCalendarDate(date) {
@@ -722,8 +708,4 @@ function escapeHtml(value) {
 
 function escapeAttribute(value) {
   return escapeHtml(value).replaceAll("`", "&#096;");
-}
-
-function clamp(value, minimum, maximum) {
-  return Math.min(Math.max(value, minimum), maximum);
 }

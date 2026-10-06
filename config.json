@@ -1,4 +1,5 @@
 {
+  "weddingDate": "2026-12-03T18:45:00+05:30",
   "assets": {
     "sharedPaperTexture": "assets/Paper-2.jpg",
     "mobilePaperTexture": "assets/Paper-2-mobile.jpg",
@@ -6,7 +7,8 @@
     "envelopeOuter": "assets/Paper-Outer-web.jpg",
     "waxSealTexture": "assets/Wax-Seal-web.png",
     "paperTexture": "assets/textures/cotton-rag-parchment.jpg",
-    "goldFoilOverlay": "assets/textures/gold-leaf-subtle.png"
+    "goldFoilOverlay": "assets/textures/gold-leaf-subtle.png",
+    "ganeshaEmblem": "assets/GANESHA-3.png"
   },
   "theme": {
     "fontDisplay": "'Cinzel Decorative', serif",
@@ -58,23 +60,41 @@
       "pageNumber": 1,
       "template": "COVER",
       "content": {
+        "emblemAlt": "Lord Ganesha",
         "spiritualInvocation": "In Reverence to Lord Ganesha",
-        "shloka": "O Lord of the curved trunk, radiant as a million suns, remove every obstacle from all our endeavors, always.",
+        "shloka_l1": "वक्रतुण्ड महाकाय सूर्यकोटि समप्रभ।",
+        "shloka_l2": "निर्विघ्नं कुरु मे देव सर्वकार्येषु सर्वदा॥",
         "headline": "Save the Date for the Wedding of",
         "couple": {
           "bride": {
+            "label": "The Bride",
             "name": "Sukriti",
             "parents": "Daughter of Smt. & Shri ...",
             "residence": "Pune, Maharashtra"
           },
           "groom": {
+            "label": "The Groom",
             "name": "Sidhant",
             "parents": "Son of Smt. & Shri ...",
             "residence": "Pune, Maharashtra"
           }
         },
-        "weddingDateFormal": "Sunday, the Twenty-Second of November, Two Thousand Twenty-Six",
         "bottomNote": "Invitation & Itinerary Inside"
+      }
+    },
+    {
+      "pageNumber": 5,
+      "template": "COUNTDOWN",
+      "content": {
+        "headerBadge": "Counting the Moments",
+        "title": "Until We Say I Do",
+        "labels": {
+          "days": "Days",
+          "hours": "Hours",
+          "minutes": "Minutes",
+          "seconds": "Seconds"
+        },
+        "completeMessage": "The celebrations have begun."
       }
     },
     {
@@ -104,29 +124,30 @@
         "events": [
           {
             "name": "Haldi & Tel Baan",
-            "date": "Saturday, 21 November 2026",
+            "dayOffset": -1,
             "time": "10:00 AM",
             "attire": "Shades of Turmeric & Sunshine Yellow",
             "description": "An auspicious morning of sacred turmeric paste, music, and laughter."
           },
           {
             "name": "Sangeet & Cocktail Soirée",
-            "date": "Saturday, 21 November 2026",
+            "dayOffset": -1,
             "time": "07:00 PM onwards",
             "attire": "Indo-Western Glitz & Festive Glamour",
             "description": "An evening of dance performances, music, and celebration."
           },
           {
             "name": "Baraat Procession & Swagatam",
-            "date": "Sunday, 22 November 2026",
+            "dayOffset": 0,
             "time": "04:30 PM",
             "attire": "Traditional Royal Ethnic",
             "description": "The groom's lively arrival followed by the Milni ceremony."
           },
           {
             "name": "Hastamelap & Varmala (Muhurtham)",
-            "date": "Sunday, 22 November 2026",
-            "time": "06:15 PM (Auspicious Godhuli Bela)",
+            "dayOffset": 0,
+            "useWeddingTime": true,
+            "timeNote": "Auspicious Godhuli Bela",
             "attire": "Traditional Indian Silks & Kurtas",
             "description": "The sacred Vedic wedding rituals and vows around the Agni."
           }
@@ -159,8 +180,8 @@
           }
         ],
         "quickActionButtons": {
-          "enableCalendarExport": true,
-          "enableDirectWhatsappRsvp": true,
+          "enableCalendarExport": false,
+          "enableDirectWhatsappRsvp": false,
           "whatsappNumber": "919876543210",
           "whatsappPrefilledMessage": "Greetings! We confirm our attendance for the wedding celebrations. Sending love!"
         },
