@@ -1,0 +1,170 @@
+{
+  "assets": {
+    "sharedPaperTexture": "assets/Paper-2.jpg",
+    "woodBackdrop": "assets/textures/dark-walnut.jpg",
+    "envelopeOuter": "assets/Paper-Outer-web.jpg",
+    "waxSealTexture": "assets/Wax-Seal-web.png",
+    "paperTexture": "assets/textures/cotton-rag-parchment.jpg",
+    "goldFoilOverlay": "assets/textures/gold-leaf-subtle.png"
+  },
+  "theme": {
+    "fontDisplay": "'Cinzel Decorative', serif",
+    "fontHeading": "'Rozha One', serif",
+    "fontBody": "'Montserrat', sans-serif",
+    "fontScript": "'Cormorant Garamond', italic, serif",
+    "colors": {
+      "primaryMaroon": "#6B0F1A",
+      "deepCrimson": "#4A050D",
+      "antiqueGold": "#C5A059",
+      "goldLeafSheen": "linear-gradient(135deg, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C)",
+      "parchmentBg": "#FAF6EE",
+      "inkDark": "#231B1B",
+      "inkMuted": "#665753"
+    },
+    "motifs": {
+      "cornerGlyph": "❦",
+      "dividerGlyph": "◆",
+      "lotusGlyph": "✦"
+    }
+  },
+  "ui": {
+    "documentTitle": "Sukriti & Sidhant | Wedding Invitation",
+    "metaDescription": "Wedding invitation for Sukriti and Sidhant",
+    "loadingText": "Preparing your invitation…",
+    "loadErrorTitle": "The invitation could not be opened",
+    "loadErrorBody": "Please refresh the page or check your connection.",
+    "openSealAriaLabel": "Break the wax seal and open the wedding invitation",
+    "previousPageLabel": "Previous page",
+    "nextPageLabel": "Next page",
+    "bookControlsAriaLabel": "Invitation pages",
+    "calendarButtonText": "Add events to calendar",
+    "whatsappButtonText": "RSVP on WhatsApp",
+    "mapsButtonText": "Open in Google Maps",
+    "callButtonPrefix": "Call",
+    "pageStatusTemplate": "Page {current} of {total}",
+    "bookAriaLabel": "Sukriti and Sidhant wedding invitation"
+  },
+  "envelope": {
+    "sealMonogramText": "S & S",
+    "sealPromptText": "Tap to break seal & open",
+    "outerLabel": {
+      "to": "The Esteemed Family of",
+      "guestPlaceholder": "Honored Guest"
+    }
+  },
+  "pages": [
+    {
+      "pageNumber": 1,
+      "template": "COVER",
+      "content": {
+        "spiritualInvocation": "In Reverence to Lord Ganesha",
+        "shloka": "O Lord of the curved trunk, radiant as a million suns, remove every obstacle from all our endeavors, always.",
+        "headline": "Save the Date for the Wedding of",
+        "couple": {
+          "bride": {
+            "name": "Sukriti",
+            "parents": "Daughter of Smt. & Shri ...",
+            "residence": "Pune, Maharashtra"
+          },
+          "groom": {
+            "name": "Sidhant",
+            "parents": "Son of Smt. & Shri ...",
+            "residence": "Pune, Maharashtra"
+          }
+        },
+        "weddingDateFormal": "Sunday, the Twenty-Second of November, Two Thousand Twenty-Six",
+        "bottomNote": "Invitation & Itinerary Inside"
+      }
+    },
+    {
+      "pageNumber": 2,
+      "template": "FAMILY_BLESSINGS",
+      "content": {
+        "headerBadge": "Auspicious Beginnings",
+        "title": "With the Blessings of Our Ancestors",
+        "quote": "Two lives, two souls, two families joined together in sacred harmony.",
+        "hostsSection": {
+          "title": "Warmly Invited By:",
+          "names": [
+            "Grandparents and Elders of the Family",
+            "Smt. & Shri [Family Name]",
+            "Extended Kith and Kin"
+          ]
+        },
+        "culturalMessage": "We solicit your gracious presence and heartfelt blessings as our children embark on this sacred journey of Saptapadi."
+      }
+    },
+    {
+      "pageNumber": 3,
+      "template": "ITINERARY",
+      "content": {
+        "headerBadge": "Celebration Timeline",
+        "title": "Events & Muhurtham",
+        "events": [
+          {
+            "name": "Haldi & Tel Baan",
+            "date": "Saturday, 21 November 2026",
+            "time": "10:00 AM",
+            "attire": "Shades of Turmeric & Sunshine Yellow",
+            "description": "An auspicious morning of sacred turmeric paste, music, and laughter."
+          },
+          {
+            "name": "Sangeet & Cocktail Soirée",
+            "date": "Saturday, 21 November 2026",
+            "time": "07:00 PM onwards",
+            "attire": "Indo-Western Glitz & Festive Glamour",
+            "description": "An evening of dance performances, music, and celebration."
+          },
+          {
+            "name": "Baraat Procession & Swagatam",
+            "date": "Sunday, 22 November 2026",
+            "time": "04:30 PM",
+            "attire": "Traditional Royal Ethnic",
+            "description": "The groom's lively arrival followed by the Milni ceremony."
+          },
+          {
+            "name": "Hastamelap & Varmala (Muhurtham)",
+            "date": "Sunday, 22 November 2026",
+            "time": "06:15 PM (Auspicious Godhuli Bela)",
+            "attire": "Traditional Indian Silks & Kurtas",
+            "description": "The sacred Vedic wedding rituals and vows around the Agni."
+          }
+        ]
+      }
+    },
+    {
+      "pageNumber": 4,
+      "template": "LOGISTICS_RSVP",
+      "content": {
+        "headerBadge": "Destination & Reception",
+        "venue": {
+          "name": "The Grand Heritage Lawns & Banquet",
+          "hall": "Kalyan Mandapam Pavilion",
+          "addressLine1": "Survey No. 45, Off Pune-Solapur Highway",
+          "cityStatePin": "Hadapsar, Pune, Maharashtra 411028",
+          "googleMapsUrl": "https://maps.google.com/?q=Pune+Maharashtra"
+        },
+        "receptionDetails": "Dinner and blessings will follow the sacred ceremony from 08:00 PM onwards.",
+        "rsvpContacts": [
+          {
+            "name": "Family Coordinator",
+            "phone": "+91 98765 43210",
+            "relation": "RSVP"
+          },
+          {
+            "name": "Event Desk",
+            "phone": "+91 98765 43211",
+            "relation": "Travel Assistance"
+          }
+        ],
+        "quickActionButtons": {
+          "enableCalendarExport": true,
+          "enableDirectWhatsappRsvp": true,
+          "whatsappNumber": "919876543210",
+          "whatsappPrefilledMessage": "Greetings! We confirm our attendance for the wedding celebrations. Sending love!"
+        },
+        "closingBlessing": "A guest is akin to God"
+      }
+    }
+  ]
+}
