@@ -10,41 +10,21 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Cormorant+Garamond:ital,wght@1,500;1,600&family=Montserrat:wght@400;500;600&family=Rozha+One&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
-    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
     <script defer src="app.js"></script>
   </head>
-  <body>
-    <main id="invitation-app" class="invitation-app" aria-live="polite">
+  <body class="intro-active">
+    <main id="invitation-app" class="invitation-app">
       <div id="loading-state" class="loading-state" role="status">
         <span class="loading-mark" aria-hidden="true"></span>
         <p id="loading-text"></p>
       </div>
 
-      <section id="envelope-scene" class="envelope-scene" hidden>
-        <div class="table-vignette" aria-hidden="true"></div>
-        <div id="envelope" class="envelope">
-          <div class="envelope-backplate"></div>
-          <div class="invitation-card-preview" aria-hidden="true">
-            <span class="preview-ornament"></span>
-            <strong id="preview-monogram"></strong>
-          </div>
-          <div class="flap flap-left"></div>
-          <div class="flap flap-right"></div>
-          <div class="flap flap-bottom"></div>
-          <div class="flap flap-top">
-            <div class="flap-top-surface"></div>
-            <div class="flap-inner-shadow"></div>
-            <button id="wax-seal" class="wax-seal" type="button">
-              <img id="wax-seal-image" alt="" hidden>
-              <span id="seal-monogram" class="seal-monogram"></span>
-            </button>
-          </div>
-          <div class="envelope-label" aria-hidden="true">
-            <span id="envelope-label-to"></span>
-            <strong id="envelope-label-guest"></strong>
-          </div>
-        </div>
-        <p id="seal-prompt" class="seal-prompt"></p>
+      <section id="intro-scene" class="intro-scene" hidden>
+        <video id="intro-video" class="intro-video" preload="auto" playsinline disablepictureinpicture disableremoteplayback aria-hidden="true"></video>
+        <button id="intro-play" class="intro-play" type="button" disabled>
+          <span class="intro-play-mark" aria-hidden="true"></span>
+          <span id="intro-prompt" class="intro-prompt" role="status"></span>
+        </button>
       </section>
 
       <section id="book-stage" class="book-stage" hidden inert aria-hidden="true">
