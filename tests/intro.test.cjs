@@ -221,7 +221,7 @@ test("a device pause allows resuming without resetting playback", async () => {
   assert.equal(h.evaluate("introState"), "playing");
 });
 
-test("only ended playback crossfades, then unlocks and focuses the invitation", async () => {
+test("ended playback holds the final frame, slowly reveals opaque paper, then starts content entry", async () => {
   const h = createHarness();
   h.context.bindIntroEvents();
   h.evaluate('introState = "ready"; introVideoUrl = "blob:intro-test";');
@@ -237,10 +237,15 @@ test("only ended playback crossfades, then unlocks and focuses the invitation", 
   assert.equal(h.evaluate("introState"), "revealing");
   assert.equal(h.stage.hidden, false);
   assert.equal(h.stage.inert, true);
+  assert.equal(h.bodyClasses.has("invitation-ready"), false);
   assert.equal(h.scene.animations.length, 1);
-  assert.equal(h.stage.animations.length, 1);
-  assert.equal(h.scene.animations[0].timing.duration, 900);
-  assert.equal(h.stage.animations[0].keyframes[0].opacity, 0);
+  assert.equal(h.stage.animations.length, 0);
+  assert.equal(h.scene.animations[0].timing.delay, config.theme.motion.introFadeDelayMs);
+  assert.equal(h.scene.animations[0].timing.duration, config.theme.motion.introFadeDurationMs);
+  assert.equal(h.scene.animations[0].timing.fill, "backwards");
+  assert.ok(h.scene.animations[0].timing.delay >= 800);
+  assert.ok(h.scene.animations[0].timing.duration >= 2600);
+  assert.equal(h.scene.animations[0].keyframes[0].opacity, 1);
   h.scene.animations[0].dispatchEvent(new Event("finish"));
 
   assert.equal(h.evaluate("introState"), "complete");
@@ -248,6 +253,7 @@ test("only ended playback crossfades, then unlocks and focuses the invitation", 
   assert.equal(h.stage.inert, false);
   assert.equal(h.stage.getAttribute("aria-hidden"), null);
   assert.equal(h.bodyClasses.has("intro-active"), false);
+  assert.equal(h.bodyClasses.has("invitation-ready"), true);
   assert.equal(h.document.activeElement.id, "book-container");
   assert.deepEqual(h.revokedUrls, ["blob:intro-test"]);
   assert.equal(h.video.getAttribute("src"), null);
@@ -265,6 +271,17 @@ test("reduced motion skips the fade, not user-initiated playback", async () => {
   assert.equal(h.evaluate("introState"), "complete");
   assert.equal(h.scene.animations.length, 0);
   assert.equal(h.stage.inert, false);
+  assert.equal(h.bodyClasses.has("invitation-ready"), true);
+});
+
+test("motion timings reject missing, negative, non-numeric, and non-finite values", () => {
+  const h = createHarness();
+  for (const key of Object.keys(config.theme.motion)) {
+    for (const value of [undefined, -1, "1000", Infinity, NaN]) {
+      const theme = { ...config.theme, motion: { ...config.theme.motion, [key]: value } };
+      assert.throws(() => h.context.validateConfig({ ...config, theme }), new RegExp(`theme\\.motion\\.${key}`));
+    }
+  }
 });
 
 test("a playback media error is reported instead of silently revealing content", async () => {

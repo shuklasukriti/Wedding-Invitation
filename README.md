@@ -8,9 +8,11 @@ A mobile-first, config-driven wedding invitation with a full-screen video introd
 
 A maroon-and-gold loader stays on screen until the entire video has downloaded into a local blob and is ready to play. Guests then tap anywhere (or use Enter/Space on the full-screen play button) to begin. Playback is inline, without native video controls, and keeps the video's original audio. If the device pauses playback, tapping again resumes it. A rejected playback request shows a retry prompt; download or decoding errors show the invitation's error message rather than skipping the intro.
 
-On mobile devices, the selected video rotates 90 degrees clockwise and fills the viewport, cropping as needed. Desktop video fills the viewport without a CSS transform. When playback ends, the video gently crossfades into the invitation over 900 ms. Reduced-motion guests still tap to play the video, but the final transition is immediate. The downloaded video is released after the intro.
+On mobile devices, the selected video rotates 90 degrees clockwise and fills the viewport, cropping as needed. Desktop video fills the viewport without a CSS transform. When playback ends, the final frame holds for 800 ms before the video gently fades over fully opaque paper for 2600 ms, avoiding a dark dip during the transition. Content stays hidden throughout this fade, then enters over 2200 ms after an additional 400 ms pause, with a 140 ms stagger on the cover. Reduced-motion guests still tap to play the video, but the final transition and content reveal are immediate. The downloaded video is released after the intro.
 
 The loader, tap prompt, accessible labels, and playback retry text are configurable in `ui`.
+
+`theme.motion` controls these timings in milliseconds, along with the slower 3600 ms loader rotation and 700 ms countdown digit roll. Keep countdown rolls shorter than the one-second update interval.
 
 ## Edit the invitation
 

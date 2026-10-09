@@ -12,6 +12,10 @@
   --font-script: "Cormorant Garamond", italic, serif;
   --paper-image: none;
   --gold-image: none;
+  --content-enter-delay: 400ms;
+  --content-enter-duration: 2200ms;
+  --content-stagger: 140ms;
+  --loader-turn-duration: 3600ms;
   color-scheme: light;
 }
 
@@ -110,7 +114,7 @@ button {
   border: 1px solid transparent;
   border-top-color: var(--antique-gold);
   border-radius: 50%;
-  animation: loading-turn 2.4s linear infinite;
+  animation: loading-turn var(--loader-turn-duration) linear infinite;
 }
 
 .loading-mark::before,
@@ -501,23 +505,23 @@ button {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  body:not(.invitation-ready) .page-cover .template-content > :not(.cover-title):not(.couple-panels),
-  body:not(.invitation-ready) .page-cover .partner-block,
-  body:not(.invitation-ready) .page-cover .corner-filigree {
+  body:not(.invitation-ready) .page-container :where(.template-content > :not(.couple-panels), .partner-block, .corner-filigree) {
     opacity: 0 !important;
   }
 
-  body.invitation-ready .page-cover :where(.template-content > :not(.cover-title):not(.couple-panels), .partner-block, .corner-filigree) {
-    animation: cover-content-enter 1400ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  body.invitation-ready .page-container :where(.template-content > :not(.couple-panels), .partner-block, .corner-filigree) {
+    animation: cover-content-enter var(--content-enter-duration) cubic-bezier(0.22, 1, 0.36, 1) backwards;
+    animation-delay: calc(var(--content-enter-delay) + var(--content-stagger) * var(--entry-step, 0));
   }
 
-  body.invitation-ready .page-cover .cover-invocation { animation-delay: 60ms; }
-  body.invitation-ready .page-cover .cover-shloka { animation-delay: 100ms; }
-  body.invitation-ready .page-cover .cover-headline { animation-delay: 150ms; }
-  body.invitation-ready .page-cover .partner-bride { animation-delay: 200ms; }
-  body.invitation-ready .page-cover .partner-groom { animation-delay: 270ms; }
-  body.invitation-ready .page-cover .wedding-date { animation-delay: 340ms; }
-  body.invitation-ready .page-cover .cover-bottom-note { animation-delay: 400ms; }
+  .page-cover .cover-invocation { --entry-step: 1; }
+  .page-cover .cover-shloka { --entry-step: 2; }
+  .page-cover .cover-headline { --entry-step: 3; }
+  .page-cover .cover-title { --entry-step: 4; }
+  .page-cover .partner-bride { --entry-step: 5; }
+  .page-cover .partner-groom { --entry-step: 6; }
+  .page-cover .wedding-date { --entry-step: 7; }
+  .page-cover .cover-bottom-note { --entry-step: 8; }
 }
 
 @keyframes cover-content-enter {

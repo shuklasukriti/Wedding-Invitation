@@ -80,6 +80,13 @@ function validateConfig(config) {
         throw new TypeError(`ui.${key} must be non-empty text.`);
       }
     });
+  ["introFadeDelayMs", "introFadeDurationMs", "contentEnterDelayMs", "contentEnterDurationMs",
+    "contentStaggerMs", "countdownRollDurationMs", "loaderTurnDurationMs"].forEach(key => {
+    const value = config.theme.motion?.[key];
+    if (!Number.isFinite(value) || value < 0) {
+      throw new TypeError(`theme.motion.${key} must be a non-negative number of milliseconds.`);
+    }
+  });
   if (!Array.isArray(config.pages) || config.pages.length === 0) {
     throw new TypeError("INVITATION_CONFIG.pages must contain at least one page.");
   }
@@ -130,7 +137,11 @@ async function applyTheme(config) {
     "--gold-sheen": theme.colors.goldLeafSheen,
     "--parchment-bg": theme.colors.parchmentBg,
     "--ink-dark": theme.colors.inkDark,
-    "--ink-muted": theme.colors.inkMuted
+    "--ink-muted": theme.colors.inkMuted,
+    "--content-enter-delay": `${theme.motion.contentEnterDelayMs}ms`,
+    "--content-enter-duration": `${theme.motion.contentEnterDurationMs}ms`,
+    "--content-stagger": `${theme.motion.contentStaggerMs}ms`,
+    "--loader-turn-duration": `${theme.motion.loaderTurnDurationMs}ms`
   };
 
   Object.entries(variables).forEach(([property, value]) => {
@@ -350,7 +361,7 @@ function initializeCountdowns() {
           const animation = reel.animate([
             { transform: "translateY(0)" },
             { transform: "translateY(-50%)" }
-          ], { duration: 450, easing: "cubic-bezier(0.4, 0, 0.2, 1)" });
+          ], { duration: INVITATION_CONFIG.theme.motion.countdownRollDurationMs, easing: "cubic-bezier(0.4, 0, 0.2, 1)" });
           animation.onfinish = () => {
             settle();
             animation.cancel();
@@ -526,15 +537,19 @@ function revealInvitation() {
   if (introState !== "playing") return;
   introState = "revealing";
   elements.bookStage.hidden = false;
-  document.body.classList.add("invitation-ready");
 
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
     finishIntro();
     return;
   }
 
-  const timing = { duration: 900, easing: "ease-in-out" };
-  elements.bookStage.animate([{ opacity: 0 }, { opacity: 1 }], timing);
+  const timing = {
+    delay: INVITATION_CONFIG.theme.motion.introFadeDelayMs,
+    duration: INVITATION_CONFIG.theme.motion.introFadeDurationMs,
+    easing: "ease-in-out",
+    fill: "backwards"
+  };
+  // Fade only the video over opaque paper to avoid a dark dip between translucent layers.
   const fade = elements.introScene.animate([{ opacity: 1 }, { opacity: 0 }], timing);
   fade.addEventListener("finish", finishIntro, { once: true });
 }
@@ -542,6 +557,7 @@ function revealInvitation() {
 function finishIntro() {
   introState = "complete";
   elements.introScene.hidden = true;
+  document.body.classList.add("invitation-ready");
   elements.bookStage.removeAttribute("aria-hidden");
   elements.bookStage.inert = false;
   document.body.classList.remove("intro-active");

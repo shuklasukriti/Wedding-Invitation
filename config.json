@@ -16,6 +16,15 @@
     "fontHeading": "'Rozha One', serif",
     "fontBody": "'Montserrat', sans-serif",
     "fontScript": "'Cormorant Garamond', italic, serif",
+    "motion": {
+      "introFadeDelayMs": 800,
+      "introFadeDurationMs": 2600,
+      "contentEnterDelayMs": 400,
+      "contentEnterDurationMs": 2200,
+      "contentStaggerMs": 140,
+      "countdownRollDurationMs": 700,
+      "loaderTurnDurationMs": 3600
+    },
     "colors": {
       "primaryMaroon": "#6B0F1A",
       "deepCrimson": "#4A050D",
