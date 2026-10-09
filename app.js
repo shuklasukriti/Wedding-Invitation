@@ -1,27 +1,19 @@
 "use strict";
 
 let INVITATION_CONFIG = null;
-let unsealing = false;
+let introState = "loading";
+let introVideoUrl = null;
+
+const MOBILE_LAYOUT_QUERY = "(max-width: 719px), (pointer: coarse)";
 
 const elements = {
-  app: document.getElementById("invitation-app"),
   loading: document.getElementById("loading-state"),
   loadingText: document.getElementById("loading-text"),
-  envelopeScene: document.getElementById("envelope-scene"),
-  envelope: document.getElementById("envelope"),
-  envelopeLabelTo: document.getElementById("envelope-label-to"),
-  envelopeLabelGuest: document.getElementById("envelope-label-guest"),
-  previewMonogram: document.getElementById("preview-monogram"),
-  seal: document.getElementById("wax-seal"),
-  sealImage: document.getElementById("wax-seal-image"),
-  sealMonogram: document.getElementById("seal-monogram"),
-  sealPrompt: document.getElementById("seal-prompt"),
-  topFlap: document.querySelector(".flap-top"),
-  flapInnerShadow: document.querySelector(".flap-inner-shadow"),
-  cardPreview: document.querySelector(".invitation-card-preview"),
-  tableVignette: document.querySelector(".table-vignette"),
+  introScene: document.getElementById("intro-scene"),
+  introVideo: document.getElementById("intro-video"),
+  introPlay: document.getElementById("intro-play"),
+  introPrompt: document.getElementById("intro-prompt"),
   bookStage: document.getElementById("book-stage"),
-  bookShell: document.getElementById("book-shell"),
   bookContainer: document.getElementById("book-container"),
   errorState: document.getElementById("error-state"),
   errorTitle: document.getElementById("error-title"),
@@ -47,16 +39,21 @@ async function boot() {
 
     INVITATION_CONFIG = await response.json();
     validateConfig(INVITATION_CONFIG);
-    await applyTheme(INVITATION_CONFIG);
     populateInterface(INVITATION_CONFIG);
     renderInvitationSections(INVITATION_CONFIG.pages);
-    elements.bookStage.style.visibility = "hidden";
-    elements.bookStage.hidden = false;
-    bindInterfaceEvents();
+    elements.bookContainer.addEventListener("click", handleBookAction);
     initializeCountdowns();
 
+    await Promise.all([
+      applyTheme(INVITATION_CONFIG),
+      loadIntroVideo(INVITATION_CONFIG.assets.introVideo)
+    ]);
+    bindIntroEvents();
+    introState = "ready";
     elements.loading.hidden = true;
-    elements.envelopeScene.hidden = false;
+    elements.introScene.hidden = false;
+    elements.introPlay.disabled = false;
+    elements.introPlay.focus({ preventScroll: true });
   } catch (error) {
     console.error(error);
     showLoadError(INVITATION_CONFIG?.ui);
@@ -68,9 +65,21 @@ function validateConfig(config) {
   if (!config || typeof config !== "object") {
     throw new TypeError("INVITATION_CONFIG must be an object.");
   }
-  if (!config.assets || !config.theme?.colors || !config.envelope || !config.ui) {
+  if (!config.assets || !config.theme?.colors || !config.ui) {
     throw new TypeError("INVITATION_CONFIG is missing a required global section.");
   }
+  ["mobile", "desktop"].forEach(device => {
+    const path = config.assets.introVideo?.[device];
+    if (typeof path !== "string" || !path.trim()) {
+      throw new TypeError(`assets.introVideo.${device} must be a video file path.`);
+    }
+  });
+  ["loadingText", "introSceneAriaLabel", "introPlayAriaLabel", "introPromptText", "introPlaybackErrorText"]
+    .forEach(key => {
+      if (typeof config.ui[key] !== "string" || !config.ui[key].trim()) {
+        throw new TypeError(`ui.${key} must be non-empty text.`);
+      }
+    });
   if (!Array.isArray(config.pages) || config.pages.length === 0) {
     throw new TypeError("INVITATION_CONFIG.pages must contain at least one page.");
   }
@@ -106,10 +115,9 @@ function validateConfig(config) {
 async function applyTheme(config) {
   const root = document.documentElement;
   const { theme, assets } = config;
-  const sharedPaperTexture = window.matchMedia("(max-width: 719px), (pointer: coarse)").matches
+  const sharedPaperTexture = window.matchMedia(MOBILE_LAYOUT_QUERY).matches
     ? assets.mobilePaperTexture || assets.sharedPaperTexture
     : assets.sharedPaperTexture;
-  const envelopeTexture = sharedPaperTexture || assets.envelopeOuter;
   const bookletTexture = sharedPaperTexture || assets.paperTexture;
   const variables = {
     "--font-display": theme.fontDisplay,
@@ -132,12 +140,10 @@ async function applyTheme(config) {
   });
 
   const optionalTextures = await Promise.all([
-    probeImage(assets.woodBackdrop),
-    probeImage(envelopeTexture),
     probeImage(bookletTexture),
     probeImage(assets.goldFoilOverlay)
   ]);
-  ["--wood-image", "--envelope-image", "--paper-image", "--gold-image"]
+  ["--paper-image", "--gold-image"]
     .forEach((property, index) => root.style.setProperty(property, optionalTextures[index]));
 
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme.colors.deepCrimson);
@@ -159,29 +165,14 @@ function toCssUrl(path) {
 }
 
 function populateInterface(config) {
-  const { envelope, ui, assets } = config;
+  const { ui } = config;
   elements.loadingText.textContent = ui.loadingText;
   document.title = ui.documentTitle;
   document.querySelector('meta[name="description"]')?.setAttribute("content", ui.metaDescription);
-  elements.envelopeLabelTo.textContent = envelope.outerLabel.to;
-  elements.envelopeLabelGuest.textContent = envelope.outerLabel.guestPlaceholder;
-  elements.previewMonogram.textContent = envelope.sealMonogramText;
-  elements.sealMonogram.textContent = envelope.sealMonogramText;
-  elements.sealPrompt.textContent = envelope.sealPromptText;
-  elements.seal.setAttribute("aria-label", ui.openSealAriaLabel);
+  elements.introScene.setAttribute("aria-label", ui.introSceneAriaLabel);
+  elements.introPlay.setAttribute("aria-label", ui.introPlayAriaLabel);
+  elements.introPrompt.textContent = ui.introPromptText;
   elements.bookContainer.setAttribute("aria-label", ui.bookAriaLabel);
-
-  elements.sealImage.addEventListener("load", () => {
-    elements.sealImage.hidden = false;
-    elements.sealMonogram.hidden = false;
-    elements.seal.classList.add("has-image");
-  }, { once: true });
-  elements.sealImage.addEventListener("error", () => {
-    elements.sealImage.hidden = true;
-    elements.sealMonogram.hidden = false;
-    elements.seal.classList.remove("has-image");
-  }, { once: true });
-  elements.sealImage.src = assets.waxSealTexture;
 }
 
 function renderInvitationSections(pages) {
@@ -462,155 +453,109 @@ function createWhatsappUrl(actions) {
   return `https://wa.me/${number}?text=${encodeURIComponent(actions.whatsappPrefilledMessage)}`;
 }
 
-function bindInterfaceEvents() {
-  elements.seal.addEventListener("click", runUnsealingSequence, { once: true });
-  elements.bookContainer.addEventListener("click", handleBookAction);
-}
-
-function runUnsealingSequence() {
-  if (unsealing) return;
-  unsealing = true;
-  elements.seal.disabled = true;
-  elements.envelopeScene.style.pointerEvents = "none";
-
-  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  if (!window.gsap || reducedMotion) {
-    completeUnsealingWithoutAnimation();
-    return;
+async function loadIntroVideo(sources) {
+  const mobile = window.matchMedia(MOBILE_LAYOUT_QUERY).matches;
+  const path = mobile ? sources.mobile : sources.desktop;
+  elements.introVideo.classList.toggle("is-mobile", mobile);
+  const response = await fetch(path);
+  if (!response.ok) {
+    throw new Error(`Intro video request failed with status ${response.status}`);
   }
 
-  const durationScale = 1;
-  const mobile = window.matchMedia("(max-width: 719px)").matches;
-  const cardBounds = elements.cardPreview.getBoundingClientRect();
-  const envelopeBounds = elements.envelope.getBoundingClientRect();
-  const extractedCardTop = Math.max(0, (window.innerHeight - cardBounds.height) / 2);
-  const flapDepth = elements.topFlap.offsetHeight *
-    Number.parseFloat(window.getComputedStyle(elements.topFlap).getPropertyValue("--flap-tip")) / 100;
-  const envelopeDrop = Math.max(0, extractedCardTop + cardBounds.height + flapDepth + 32 - envelopeBounds.top);
-  const lightEffects = mobile || window.matchMedia("(pointer: coarse)").matches;
-  const cardLift = extractedCardTop - cardBounds.top - envelopeDrop;
-  const timeline = window.gsap.timeline({ defaults: { ease: "power2.inOut" } });
-  const revealTargets = elements.bookContainer.querySelectorAll(".page-inner-surface > *");
+  // A local blob guarantees the entire video is downloaded, unlike preload or canplaythrough.
+  const videoBlob = await response.blob();
+  if (!videoBlob.size) {
+    throw new Error("The intro video file is empty.");
+  }
+  introVideoUrl = URL.createObjectURL(videoBlob);
 
-  window.gsap.killTweensOf(elements.seal);
-  window.gsap.set(elements.seal, { xPercent: -50, yPercent: -50 });
-  window.gsap.set(revealTargets, { opacity: 0 });
-
-  timeline
-    .to(elements.sealPrompt, { opacity: 0, duration: 0.32 * durationScale }, 0)
-    .to(elements.topFlap, {
-      rotateX: 90,
-      z: 10,
-      ...(!lightEffects && { filter: "brightness(0.62) drop-shadow(0 14px 10px rgba(20, 0, 3, 0.48))" }),
-      duration: 0.54 * durationScale,
-      ease: "power2.in"
-    }, 0.34 * durationScale)
-    .to(elements.flapInnerShadow, {
-      opacity: 0.78,
-      duration: 0.54 * durationScale
-    }, 0.34 * durationScale)
-    .to(elements.topFlap, {
-      rotateX: 180,
-      z: -2,
-      ...(!lightEffects && { filter: "brightness(0.84) drop-shadow(0 -9px 12px rgba(20, 0, 3, 0.32))" }),
-      duration: 0.54 * durationScale,
-      ease: "power2.out"
-    }, 0.88 * durationScale)
-    .to(elements.flapInnerShadow, {
-      opacity: 0.28,
-      duration: 0.54 * durationScale
-    }, 0.88 * durationScale)
-    .to(elements.seal, {
-      scale: 0.96,
-      opacity: 0,
-      ...(!lightEffects && { filter: "drop-shadow(0 -8px 10px rgba(0, 0, 0, 0.28))" }),
-      duration: 0.48 * durationScale,
-      ease: "power1.in"
-    }, 0.9 * durationScale)
-    .set(elements.topFlap, { zIndex: 1 }, 1.43 * durationScale)
-    .set(elements.cardPreview, { zIndex: 3 }, 1.43 * durationScale)
-    .to(elements.cardPreview.children, {
-      opacity: 0,
-      duration: 0.26 * durationScale
-    }, 1.44 * durationScale)
-    .to(elements.envelope, {
-      y: envelopeDrop,
-      duration: 1.15 * durationScale,
-      ease: "power2.inOut"
-    }, 1.46 * durationScale)
-    .to(elements.cardPreview, {
-      y: cardLift,
-      duration: 1.15 * durationScale,
-      ...(!lightEffects && { boxShadow: "0 18px 24px -12px rgba(23, 0, 2, 0.46), inset 0 0 25px rgba(113, 71, 27, 0.1)" }),
-      ease: "power2.inOut"
-    }, 1.46 * durationScale)
-    .call(promoteCardPreview, [], 2.63 * durationScale)
-    .to(elements.cardPreview, {
-      top: 0,
-      left: 0,
-      width: "100vw",
-      height: "100dvh",
-      borderRadius: 0,
-      duration: 0.95 * durationScale,
-      ease: "power3.inOut"
-    }, 2.66 * durationScale)
-    .call(prepareBookStage, [], 3.64 * durationScale)
-    .set(elements.bookStage, { opacity: 1 }, 3.64 * durationScale)
-    .set(elements.bookShell, { scale: 1 }, 3.64 * durationScale)
-    .set(revealTargets, { opacity: 1 }, 3.64 * durationScale)
-    .to(elements.cardPreview, {
-      opacity: 0,
-      duration: 0.42 * durationScale,
-      ease: "power1.inOut"
-    }, 3.74 * durationScale)
-    .call(finishUnsealing);
-}
-
-function promoteCardPreview() {
-  const bounds = elements.cardPreview.getBoundingClientRect();
-  elements.app.append(elements.cardPreview);
-  elements.cardPreview.classList.add("is-extracting");
-  window.gsap.set(elements.cardPreview, { clearProps: "transform" });
-  window.gsap.set(elements.cardPreview, {
-    zIndex: 50,
-    top: bounds.top,
-    left: bounds.left,
-    width: bounds.width,
-    height: bounds.height,
-    x: 0,
-    y: 0,
-    xPercent: 0,
-    yPercent: 0,
-    scale: 1
+  await new Promise((resolve, reject) => {
+    const video = elements.introVideo;
+    const cleanup = () => {
+      video.removeEventListener("canplay", onReady);
+      video.removeEventListener("error", onError);
+    };
+    const onReady = () => {
+      cleanup();
+      resolve();
+    };
+    const onError = () => {
+      cleanup();
+      reject(new Error(`The intro video could not be decoded (media error ${video.error?.code}).`));
+    };
+    video.addEventListener("canplay", onReady);
+    video.addEventListener("error", onError);
+    video.src = introVideoUrl;
+    video.load();
   });
 }
 
-function finishUnsealing() {
-  elements.envelopeScene.hidden = true;
-  elements.envelopeScene.removeAttribute("style");
+function bindIntroEvents() {
+  elements.introPlay.addEventListener("click", playIntro);
+  elements.introVideo.addEventListener("ended", revealInvitation);
+  elements.introVideo.addEventListener("pause", () => {
+    if (introState !== "playing" || elements.introVideo.ended) return;
+    introState = "ready";
+    elements.introPlay.hidden = false;
+    elements.introPrompt.textContent = INVITATION_CONFIG.ui.introPromptText;
+  });
+  elements.introVideo.addEventListener("error", () => {
+    if (introState === "complete" || introState === "error") return;
+    console.error(`Intro video playback failed (media error ${elements.introVideo.error?.code}).`);
+    showLoadError(INVITATION_CONFIG.ui);
+  });
+}
+
+async function playIntro() {
+  if (introState !== "ready") return;
+  introState = "playing";
+  elements.introPlay.hidden = true;
+  try {
+    await elements.introVideo.play();
+  } catch (error) {
+    console.error("Intro video playback could not start.", error);
+    if (introState !== "playing") return;
+    introState = "ready";
+    elements.introPrompt.textContent = INVITATION_CONFIG.ui.introPlaybackErrorText;
+    elements.introPlay.hidden = false;
+    elements.introPlay.focus({ preventScroll: true });
+  }
+}
+
+function revealInvitation() {
+  if (introState !== "playing") return;
+  introState = "revealing";
+  elements.bookStage.hidden = false;
+  document.body.classList.add("invitation-ready");
+
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    finishIntro();
+    return;
+  }
+
+  const timing = { duration: 900, easing: "ease-in-out" };
+  elements.bookStage.animate([{ opacity: 0 }, { opacity: 1 }], timing);
+  const fade = elements.introScene.animate([{ opacity: 1 }, { opacity: 0 }], timing);
+  fade.addEventListener("finish", finishIntro, { once: true });
+}
+
+function finishIntro() {
+  introState = "complete";
+  elements.introScene.hidden = true;
   elements.bookStage.removeAttribute("aria-hidden");
   elements.bookStage.inert = false;
-  elements.cardPreview.remove();
-  document.body.classList.add("invitation-ready");
+  document.body.classList.remove("intro-active");
+  releaseIntroVideo();
   elements.bookContainer.focus({ preventScroll: true });
 }
 
-function prepareBookStage() {
-  document.body.classList.add("book-open");
-  elements.envelopeScene.hidden = true;
-  elements.bookStage.hidden = false;
-  elements.bookStage.style.visibility = "";
-  elements.bookStage.setAttribute("aria-hidden", "true");
-}
-
-function completeUnsealingWithoutAnimation() {
-  document.body.classList.add("book-open");
-  elements.envelopeScene.hidden = true;
-  elements.bookStage.hidden = false;
-  elements.bookStage.style.visibility = "";
-  elements.bookStage.style.opacity = "1";
-  elements.bookShell.style.transform = "scale(1) translateY(0)";
-  finishUnsealing();
+function releaseIntroVideo() {
+  elements.introVideo.removeAttribute("src");
+  elements.introVideo.load();
+  if (introVideoUrl) {
+    URL.revokeObjectURL(introVideoUrl);
+    introVideoUrl = null;
+  }
 }
 
 function handleBookAction(event) {
@@ -689,9 +634,12 @@ function escapeCalendarText(value) {
 }
 
 function showLoadError(ui = {}) {
+  introState = "error";
   elements.loading.hidden = true;
-  elements.envelopeScene.hidden = true;
+  elements.introScene.hidden = true;
   elements.bookStage.hidden = true;
+  document.body.classList.remove("intro-active", "invitation-ready");
+  releaseIntroVideo();
   elements.errorTitle.textContent = ui.loadErrorTitle || "The invitation could not be opened";
   elements.errorBody.textContent = ui.loadErrorBody || "Please refresh the page or check your connection.";
   elements.errorState.hidden = false;

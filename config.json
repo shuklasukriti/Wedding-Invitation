@@ -1,11 +1,12 @@
 {
   "weddingDate": "2026-12-03T18:45:00+05:30",
   "assets": {
+    "introVideo": {
+      "mobile": "assets/intro-vid-portrait.mp4",
+      "desktop": "assets/intro-vid-landscape.mp4"
+    },
     "sharedPaperTexture": "assets/Paper-2.jpg",
     "mobilePaperTexture": "assets/Paper-2-mobile.jpg",
-    "woodBackdrop": "assets/textures/dark-walnut.jpg",
-    "envelopeOuter": "assets/Paper-Outer-web.jpg",
-    "waxSealTexture": "assets/Wax-Seal-web.png",
     "paperTexture": "assets/textures/cotton-rag-parchment.jpg",
     "goldFoilOverlay": "assets/textures/gold-leaf-subtle.png",
     "ganeshaEmblem": "assets/GANESHA-3.png"
@@ -36,7 +37,10 @@
     "loadingText": "Preparing your invitation…",
     "loadErrorTitle": "The invitation could not be opened",
     "loadErrorBody": "Please refresh the page or check your connection.",
-    "openSealAriaLabel": "Break the wax seal and open the wedding invitation",
+    "introSceneAriaLabel": "Wedding invitation introduction",
+    "introPlayAriaLabel": "Play the wedding invitation introduction",
+    "introPromptText": "Tap anywhere to begin",
+    "introPlaybackErrorText": "Playback could not start. Tap anywhere to try again.",
     "previousPageLabel": "Previous page",
     "nextPageLabel": "Next page",
     "bookControlsAriaLabel": "Invitation pages",
@@ -46,14 +50,6 @@
     "callButtonPrefix": "Call",
     "pageStatusTemplate": "Page {current} of {total}",
     "bookAriaLabel": "Sukriti and Sidhant wedding invitation"
-  },
-  "envelope": {
-    "sealMonogramText": "S & S",
-    "sealPromptText": "Tap to break seal & open",
-    "outerLabel": {
-      "to": "The Esteemed Family of",
-      "guestPlaceholder": "Honored Guest"
-    }
   },
   "pages": [
     {
